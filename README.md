@@ -1,4 +1,4 @@
-# ICSME 2026 Energy Patterns Replication Package
+# Thesis Energy Patterns Replication Package
 
 This repository contains the replication package for my Master thesis: "Understanding Energy Patterns in Python Web Applications: Taxonomy, Impact, and Automated Identification. The project structure is organized by Research Questions (RQs), with each folder containing the necessary data, scripts, and instructions to replicate the results.
 
