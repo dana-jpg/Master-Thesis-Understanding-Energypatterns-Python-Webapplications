@@ -1,0 +1,81 @@
+{
+  "timestamp": "2026-01-21T14:15:23.598473",
+  "repo_path": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/erpnxt_multiple_billing/code",
+  "input_type": "path",
+  "analysis_mode": "suggestion",
+  "total_findings": 5,
+  "llm_usage": {
+    "fast": 16,
+    "deep": 16,
+    "cache_hits": 0,
+    "skipped": 4,
+    "failed": 0
+  },
+  "findings": [
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/erpnxt_multiple_billing/code/controller.py",
+      "function_name": "validate",
+      "start_line": 116,
+      "end_line": 172,
+      "complexity": 14,
+      "issue": "Unnecessary function calls after validation fails",
+      "explanation": "The function continues to execute and call other functions even after validation fails, which can lead to unnecessary computations and potential errors. This can be optimized by exiting early when validation fails.",
+      "patch": "@@ -116,6 +116,9 @@\n def validate(self):\n     if not self.get('is_return'):\n         self.validate_qty_is_not_zero()\n+        if self.get('qty') == 0:\n+            return\n     if self.get(\"_action\") and self._action != \"update_after_submit\":\n         self.set_missing_values(for_validate=True)",
+      "problematic_code": "self.validate_qty_is_not_zero() ... self.validate_deferred_start_and_end_date()",
+      "taxonomy_category": "control_flow.function.optimize_data_flow",
+      "similar_to_example": null
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/erpnxt_multiple_billing/code/controller.py",
+      "function_name": "ensure_supplier_is_not_blocked",
+      "start_line": 99,
+      "end_line": 114,
+      "complexity": 12,
+      "issue": "Unoptimized database query",
+      "explanation": "The code fetches a supplier document using `frappe.get_doc` which can lead to an additional database query. This can be optimized by using a query builder or by fetching the required fields directly from the database.",
+      "patch": "@@ -103,7 +103,7 @@\n         supplier_name = self.supplier if is_buying_invoice else self.party\n         # supplier = frappe.get_doc('Supplier', supplier_name)\n-        supplier = frappe.get_doc('Supplier', supplier_name)\n+        supplier = frappe.db.get_value('Supplier', supplier_name, ['on_hold', 'hold_type', 'release_date'], as_dict=True)\n \n         if supplier and supplier_name and supplier.on_hold:\n",
+      "problematic_code": "supplier = frappe.get_doc('Supplier', supplier_name)",
+      "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+      "similar_to_example": "query_builder_vs_raw_sql"
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/erpnxt_multiple_billing/code/controller.py",
+      "function_name": "validate_multiple_billing",
+      "start_line": 296,
+      "end_line": 336,
+      "complexity": 10,
+      "issue": "N+1 queries in validate_multiple_billing",
+      "explanation": "The validate_multiple_billing function executes multiple SQL queries inside a loop, resulting in N+1 queries. This can lead to performance issues and increased database load. A similar pattern is seen in the 'n_plus_one_to_join' example, where a single query with JOINs is used to fetch related data instead of looping with individual queries.",
+      "patch": "@@ -296,7 +296,7 @@\n def validate_multiple_billing(self, ref_dt, item_ref_dn, based_on, parentfield):\n         from erpnext.controllers.status_updater import get_allowance_for\n         item_allowance = {}\n         global_qty_allowance, global_amount_allowance = None, None\n-        for item in self.get(\"items\"):\n+        items = self.get(\"items\")\n+        item_ref_dns = [item.get(item_ref_dn) for item in items]\n+        already_billed = frappe.db.sql(\"\"\"\n+            select {0}, sum({1})\n+            from `tab{2} Item`\n+            where {3} in (%s) and docstatus=1 and parent != %s\n+        \"\"\" % (item_ref_dn, based_on, self.doctype, item_ref_dn), (\",\".join(['%s'] * len(item_ref_dns)), self.name))\n+        already_billed_dict = dict(already_billed)\n+        for item in items:\n             if item.get(item_ref_dn):\n                 ref_amt = flt(frappe.db.get_value(ref_dt + \" Item\", item.get(item_ref_dn), based_on), self.precision(based_on, item))\n                 if not ref_amt:\n                     frappe.msgprint(\n                         _(\"Warning: System will not check overbilling since amount for Item {0} in {1} is zero\")\n                             .format(item.item_code, ref_dt)\n                     )\n                 else:\n-                    already_billed = frappe.db.sql(\"\"\"\n-                        select sum({0})\n-                        from `tab{1} Item`\n-                        where {2}={3} and docstatus=1 and parent != {4}\n-                    \"\"\" % (based_on, self.doctype, item_ref_dn, '%s', '%s'), (item.get(item_ref_dn), self.name))[0][0]\n+                    already_billed = already_billed_dict.get(item.get(item_ref_dn), 0)\n                     total_billed_amt = flt(flt(already_billed) + flt(item.get(based_on)), self.precision(based_on, item))\n                     allowance, item_allowance, global_qty_allowance, global_amount_allowance = \\\n                         get_allowance_for(item.item_code, item_allowance, global_qty_allowance, global_amount_allowance, \"amount\")\n                     max_allowed_amt = flt(ref_amt * (100 + allowance) / 100)\n                     if total_billed_amt < 0 and max_allowed_amt < 0:\n                         # while making debit note against purchase return entry(purchase receipt) getting overbill error\n                         total_billed_amt = abs(total_billed_amt)\n                         max_allowed_amt = abs(max_allowed_amt)\n                     role_allowed_to_over_bill = frappe.db.get_single_value('Accounts Settings', 'role_allowed_to_over_bill')\n                     if total_billed_amt - max_allowed_amt > 0.01 and role_allowed_to_over_bill not in frappe.get_roles():\n                         if self.doctype != \"Purchase Invoice\":\n                             self.throw_overbill_exception(item, max_allowed_amt)\n                         elif not cint(frappe.db.get_single_value(\"Buying Settings\", \"bill_for_rejected_quantity_in_purchase_invoice\")):\n                             self.throw_overbill_exception(item, max_allowed_amt)",
+      "problematic_code": "already_billed = frappe.db.sql(...)",
+      "taxonomy_category": "data_layer.efficient_access.batch_operations",
+      "similar_to_example": "n_plus_one_to_join"
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/erpnxt_multiple_billing/code/controller.py",
+      "function_name": "allocate_advance_taxes",
+      "start_line": 246,
+      "end_line": 294,
+      "complexity": 8,
+      "issue": "Unnecessary iterations in the loop",
+      "explanation": "The loop iterates over all 'advances' and for each advance, it fetches the 'Payment Entry' document and its 'taxes'. However, it does not check if the 'tax_amount' is zero before proceeding with the allocation. This can lead to unnecessary iterations and database queries. A similar pattern can be seen in the 'precompute_values' example where invariant computations are moved outside loops. In this case, we can exit the loop early if the 'unallocated_amount' is zero.",
+      "patch": "@@ -264,6 +264,9 @@\n for tax in pe.get(\"taxes\"):\n+\t\tif tax.tax_amount == 0:\n+\t\t\tcontinue\n+\t\t# Rest of the code remains the same\n \t\taccount_currency = get_account_currency(tax.account_head)\n",
+      "problematic_code": "for tax in pe.get(\"taxes\"): ...",
+      "taxonomy_category": "control_flow.function.optimize_data_flow",
+      "similar_to_example": "precompute_values"
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/erpnxt_multiple_billing/code/controller.py",
+      "function_name": "get_stock_items",
+      "start_line": 346,
+      "end_line": 355,
+      "complexity": 2,
+      "issue": "Inefficient query construction",
+      "explanation": "The current implementation constructs a query by concatenating item codes into a string. This approach can lead to SQL injection vulnerabilities and may not be efficient for large lists of item codes. A better approach would be to use parameterized queries or the 'IN' operator with a tuple of values.",
+      "patch": "@@ -346,7 +346,7 @@\n def get_stock_items(self):\n         stock_items = []\n         item_codes = list(set(item.item_code for item in self.get(\"items\")))\n         if item_codes:\n-            stock_items = [r[0] for r in frappe.db.sql(\"\"\"select name from `tabItem` where name in (%s) and is_stock_item=1\"\"\" % (\", \".join((\"%s\"] * len(item_codes))),), item_codes)]\n+            stock_items = [r[0] for r in frappe.db.sql(\"\"\"select name from `tabItem` where name in (%s) and is_stock_item=1\"\"\" % \", \".join(\"%s\" for _ in item_codes), tuple(item_codes))]\n \n         return stock_items",
+      "problematic_code": "frappe.db.sql(\"\"\"select name from `tabItem` where name in (%s) and is_stock_item=1\"\"\" % (\", \".join((\"%s\"] * len(item_codes))),), item_codes)",
+      "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+      "similar_to_example": null
+    }
+  ]
+}

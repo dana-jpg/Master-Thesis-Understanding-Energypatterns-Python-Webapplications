@@ -1,0 +1,18 @@
+{
+    "id": "limit_async_concurrency",
+    "taxonomy_id": "background_tasks.execution_control.limit_concurrency",
+    "title": "Limit Concurrent Async Tasks with Semaphore",
+    "description": "Use asyncio.Semaphore to limit the number of concurrent HTTP requests, preventing resource exhaustion and server overload",
+    "language": "python",
+    "source": "mealie/recipe_bulk_scraper.py",
+    "before": {
+        "code": "# UNOPTIMIZED: Unbounded concurrency\nasync def scrape(self, urls: CreateRecipeByUrlBulk) -> None:\n    async def _do(url: str) -> Recipe | None:\n        #  PROBLEM: No limit on concurrent requests!\n        # If urls.imports has 100 items, all 100 HTTP requests\n        # fire simultaneously, overwhelming the server and network\n        try:\n            recipe, _ = await create_from_html(url, self.translator)\n            return recipe\n        except Exception as e:\n            self._add_error_entry(f\"failed to scrape url {url}\", str(e))\n            return None\n\n    tasks = [_do(b.url) for b in urls.imports]\n    #  All tasks start at once - unbounded parallelism\n    results = await gather(*tasks, return_exceptions=False)\n    # ... process results",
+        "lines": 16
+    },
+    "after": {
+        "code": "# OPTIMIZED: Bounded concurrency with Semaphore\nasync def scrape(self, urls: CreateRecipeByUrlBulk) -> None:\n    #  FIX: Limit to 3 concurrent requests\n    sem = asyncio.Semaphore(3)\n\n    async def _do(url: str) -> Recipe | None:\n        #  Acquire semaphore before making request\n        async with sem:\n            try:\n                recipe, _ = await create_from_html(url, self.translator)\n                return recipe\n            except Exception as e:\n                self._add_error_entry(f\"failed to scrape url {url}\", str(e))\n                return None\n\n    tasks = [_do(b.url) for b in urls.imports]\n    # Now only 3 requests run at a time\n    results = await asyncio.gather(*tasks, return_exceptions=True)\n    # ... process results",
+        "lines": 18
+    },
+    "energy_impact": "Reduces peak resource usage by limiting concurrent connections. Prevents network congestion and server overload. More predictable memory usage.",
+    "key_insight": "Use asyncio.Semaphore(N) to limit concurrent async operations. Wrap the async work inside 'async with sem:' block."
+}

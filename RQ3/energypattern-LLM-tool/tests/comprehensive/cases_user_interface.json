@@ -1,0 +1,50 @@
+[
+    {
+        "id": "ui_update_on_change_1",
+        "description": "Posting data even if form not modified",
+        "expected_category": "user_interface.state_management.update_on_change",
+        "code": "// React Component\nfunction UserSettings({ user }) {\n  const [name, setName] = useState(user.name);\n  const [email, setEmail] = useState(user.email);\n  const [notifications, setNotifications] = useState(user.preferences.notifications);\n  \n  const handleSave = async () => {\n    // PROBLEM: Sending save request even if no fields changed\n    // This wastes server processing and network energy.\n    // Should check if (name !== user.name || email !== user.email ...)\n    \n    const payload = { name, email, preferences: { notifications } };\n    \n    try {\n        await api.patch(`/users/${user.id}`, payload);\n        alert('Saved!');\n    } catch (err) {\n        console.error(err);\n    }\n  };\n  \n  return (\n    <div>\n      <input value={name} onChange={e => setName(e.target.value)} />\n      <input value={email} onChange={e => setEmail(e.target.value)} />\n      <button onClick={handleSave}>Save</button>\n    </div>\n  );\n}"
+    },
+    {
+        "id": "ui_update_on_change_2",
+        "description": "Angular watcher triggering useless updates",
+        "expected_category": "user_interface.state_management.update_on_change",
+        "code": "// Angular Controller for Dashboard\n// Watch for changes in massive data object\n$scope.$watch('someData', function(newVal, oldVal) {\n    if (newVal === oldVal) return;\n    \n    console.log('Data changed');\n    \n    // PROBLEM: Reacting to change always, even shallow ones\n    // THe sync function is heavy.\n    // Should verify deep equality or specific field changes before making network calls\n    // to avoid \"chatter\" with the backend.\n    \n    DataService.sync(newVal).then(function() {\n        console.log('Synced successfully');\n    }).catch(function(err) {\n        console.error('Sync failed', err);\n    });\n}, true);"
+    },
+    {
+        "id": "ui_reduce_polling_1",
+        "description": "Aggressive polling interval",
+        "expected_category": "user_interface.state_management.reduce_polling",
+        "code": "function startNotificationCheck() {\n    // Check for new messages from the server\n    console.log('Starting poller');\n    \n    // PROBLEM: Polling every 1 second (1000ms)\n    // This prevents the radio from sleeping and drains battery.\n    // Should use a longer interval (e.g., 60s) or WebSockets/Push Notifications.\n    setInterval(async () => {\n        try {\n            const msgs = await fetch('/api/messages/unread');\n            const data = await msgs.json();\n            updateBadge(data.length);\n        } catch (e) {\n            console.warn('Poll failed');\n        }\n    }, 1000);\n}"
+    },
+    {
+        "id": "ui_reduce_polling_2",
+        "description": "Polling when tab is hidden",
+        "expected_category": "user_interface.state_management.reduce_polling",
+        "code": "class StockTicker {\n    constructor(symbol) {\n        this.symbol = symbol;\n        this.startPolling();\n    }\n    \n    startPolling() {\n        console.log('Ticker started');\n        // Fetch stock price every 5 seconds\n        this.timer = window.setInterval(() => {\n            // PROBLEM: Continues polling even if user switched tabs or minimized window\n            // This wastes CPU and Network when not visible.\n            // Should use document.visibilityState to pause polling.\n            this.fetchPrice();\n        }, 5000);\n    }\n    \n    fetchPrice() {\n        // Fetch logic\n        api.getPrice(this.symbol).then(updateUI);\n    }\n}"
+    },
+    {
+        "id": "ui_rendering_lazy_images_1",
+        "description": "Rendering list of images without lazy loading",
+        "expected_category": "user_interface.rendering.lazy_images",
+        "code": "function ImageGallery({ images }) {\n  // Render a grid of images for the portfolio\n  if (!images || images.length === 0) return <div>No images</div>;\n  \n  return (\n    <div className=\"gallery\">\n      {images.map(img => (\n        <div key={img.id} className=\"img-container\">\n          {/* PROBLEM: Eager loading all images */}\n          {/* If there are 100 images, all will download on load, wasting bandwidth */}\n          {/* Should add loading=\"lazy\" attribute to <img> tag */}\n          <img \n            src={img.url} \n            alt={img.caption} \n            width={300} \n            height={200}\n            className=\"gallery-img\"\n          />\n          <p>{img.caption}</p>\n        </div>\n      ))}\n    </div>\n  );\n}"
+    },
+    {
+        "id": "ui_rendering_partial_1",
+        "description": "Reloading full page for small update",
+        "expected_category": "user_interface.rendering.partial",
+        "code": "function deleteComment(commentId) {\n    // User clicked delete button on a comment\n    if (!confirm('Are you sure?')) return;\n    \n    // Call API to delete\n    fetch(`/api/comments/${commentId}`, { method: 'DELETE' })\n        .then((resp) => {\n           if (resp.ok) {\n               // PROBLEM: Reloading the entire page to reflect removal\n               // This re-downloads all assets and HTML.\n               // Should just remove the DOM element or update React state.\n               console.log('Reloading page...');\n               window.location.reload();\n           }\n        });\n}"
+    },
+    {
+        "id": "ui_client_resources_lazy_load_1",
+        "description": "Importing heavy library at top level",
+        "expected_category": "user_interface.client_resources.lazy_load",
+        "code": "// Main bundle file for the application\nimport React from 'react';\nimport { Link } from 'react-router-dom';\n\n// PROBLEM: Importing heavy charting library for a component that might not be used\n// \"heavy-chart-lib\" is 2MB minified.\n// Should use dynamic import() or React.lazy(() => import(...))\nimport { HugeChart } from 'heavy-chart-lib';\nimport { Dashboard } from './Dashboard';\n\nexport default function App() {\n    return (\n        <div>\n            <h1>My App</h1>\n            <nav>\n                <Link to=\"/\">Home</Link>\n                <Link to=\"/dashboard\">Dashboard</Link>\n            </nav>\n            \n            {/* Heavy component triggers download of library even if not rendered */}\n            <Dashboard />\n        </div>\n    );\n}"
+    },
+    {
+        "id": "ui_client_resources_efficient_format_1",
+        "description": "Using PNG for photos",
+        "expected_category": "user_interface.client_resources.efficient_format",
+        "code": "/* CSS Styles for the Landing Page */\n.hero-banner {\n    width: 100%;\n    height: 400px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    \n    /* PROBLEM: Using large PNG for a photograph/banner */\n    /* PNG is lossless and huge for photos. */\n    /* Should use WebP or JPEG for photographs. */\n    /* PNG is only suitable for graphics with transparency or sharp edges. */\n    background-image: url('/assets/images/hero-photo.png');\n    background-size: cover;\n    background-position: center;\n}\n\n.icon {\n    /* Icons are fine as PNG or SVG */\n    width: 24px;\n    height: 24px;\n    background: url('/icon.png');\n}"
+    }
+]

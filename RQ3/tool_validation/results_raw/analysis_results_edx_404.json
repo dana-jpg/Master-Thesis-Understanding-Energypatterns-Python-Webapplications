@@ -1,0 +1,68 @@
+{
+  "timestamp": "2026-01-21T12:48:44.927315",
+  "repo_path": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/edx_404/code",
+  "input_type": "path",
+  "analysis_mode": "suggestion",
+  "total_findings": 4,
+  "llm_usage": {
+    "fast": 14,
+    "deep": 14,
+    "cache_hits": 5,
+    "skipped": 1,
+    "failed": 0
+  },
+  "findings": [
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/edx_404/code/views.py",
+      "function_name": "render",
+      "start_line": 43,
+      "end_line": 73,
+      "complexity": 6,
+      "issue": "Repeated database queries for configuration values",
+      "explanation": "The code is making repeated database queries to retrieve configuration values for the page header and content. This can be optimized by reducing the number of queries or using a more efficient query method. A similar example is the 'query_builder_vs_raw_sql' example, where using an ORM query builder can improve performance and security.",
+      "patch": "@@ -55,7 +55,7 @@\n         configuration_base = 'static_template_' + template.replace('.html', '').replace('-', '_')\n         # Get configuration values in a single query\n-        page_header = configuration_helpers.get_value(configuration_base + '_header')\n-        page_content = configuration_helpers.get_value(configuration_base + '_content')\n+        config_values = configuration_helpers.get_values([configuration_base + '_header', configuration_base + '_content'])\n+        page_header, page_content = config_values.get(configuration_base + '_header'), config_values.get(configuration_base + '_content')\n         if page_header:\n             context['page_header'] = mark_safe(page_header)\n         if page_content:\n             context['page_content'] = mark_safe(page_content)",
+      "problematic_code": "def render(request, template):\n    \"\"\"\n    This view function renders the template sent without checking that it\n    exists. Do not expose template as a regex part of the url. The user should\n    not be able to ender any arbitray template name. The correct usage would be:\n\n    url(r'^jobs$', 'static_template_view.views.render', {'template': 'jobs.html'}, name=\"jobs\")\n    \"\"\"\n\n    # Guess content type from file extension\n    content_type, __ = mimetypes.guess_type(template)\n\n    try:\n        context = {}\n        # This is necessary for the dialog presented with the TOS in /register\n        if template == 'honor.html':\n            context['allow_iframing'] = True\n        # Format Examples: static_template_about_header\n        configuration_base = 'static_template_' + template.replace('.html', '').replace('-', '_')\n        page_header = configuration_helpers.get_value(configuration_base + '_header')\n        page_content = configuration_helpers.get_value(configuration_base + '_content')\n        if page_header:\n            context['page_header'] = mark_safe(page_header)\n        if page_content:\n            context['page_content'] = mark_safe(page_content)\n        result = render_to_response('static_templates/' + template, context, content_type=content_type)\n        return result\n    except TopLevelLookupException:\n        raise Http404\n    except TemplateDoesNotExist:\n        raise Http404",
+      "taxonomy_category": null,
+      "similar_to_example": null
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/edx_404/code/utils.py",
+      "function_name": "_user_has_social_auth_record",
+      "start_line": 278,
+      "end_line": 292,
+      "complexity": 3,
+      "issue": "Unoptimized database query",
+      "explanation": "The code uses the `exists()` method on a QuerySet that has a `select_related()` clause. This can lead to an unnecessary join in the database query. We can optimize this by using `filter()` instead of `select_related()` since we only need to check for the existence of a `UserSocialAuth` record.",
+      "patch": "@@ -278,7 +278,7 @@\n def _user_has_social_auth_record(user, enterprise_customer):\n     if enterprise_customer:\n         identity_provider = third_party_auth.provider.Registry.get(\n             provider_id=enterprise_customer['identity_provider'],\n         )\n-        return UserSocialAuth.objects.select_related('user').filter(\n+        return UserSocialAuth.objects.filter(\n             provider=identity_provider.backend_name,\n             user=user\n         ).exists()\n ",
+      "problematic_code": "def _user_has_social_auth_record(user, enterprise_customer):\n    \"\"\"\n    Return True if a `UserSocialAuth` record exists for `user` False otherwise.\n    \"\"\"\n    if enterprise_customer:\n        identity_provider = third_party_auth.provider.Registry.get(\n            provider_id=enterprise_customer['identity_provider'],\n        )\n        if identity_provider:\n            return UserSocialAuth.objects.select_related('user').filter(\n                provider=identity_provider.backend_name,\n                user=user\n            ).exists()\n\n    return False",
+      "taxonomy_category": null,
+      "similar_to_example": null
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/edx_404/code/utils.py",
+      "function_name": "get_enterprise_readonly_account_fields",
+      "start_line": 258,
+      "end_line": 275,
+      "complexity": 2,
+      "issue": "Unnecessary computation when sync_learner_profile_data is False",
+      "explanation": "The function get_enterprise_readonly_account_fields computes the enterprise_readonly_account_fields and then checks the value of sync_learner_profile_data. If sync_learner_profile_data is False, it returns an empty set, making the previous computation unnecessary. This can be optimized by checking the value of sync_learner_profile_data before computing the enterprise_readonly_account_fields.",
+      "patch": "@@ -265,11 +265,6 @@\n def get_enterprise_readonly_account_fields(user):\n     sync_learner_profile_data = _get_sync_learner_profile_data(enterprise_customer)\n-    enterprise_readonly_account_fields = list(settings.ENTERPRISE_READONLY_ACCOUNT_FIELDS)\n-    user_social_auth_record = _user_has_social_auth_record(user, enterprise_customer)\n-    if not user_social_auth_record:\n-        enterprise_readonly_account_fields.remove('name')\n-    return set(enterprise_readonly_account_fields) if sync_learner_profile_data else set()\n+    if not sync_learner_profile_data:\n+        return set()\n+    enterprise_readonly_account_fields = list(settings.ENTERPRISE_READONLY_ACCOUNT_FIELDS)\n+    user_social_auth_record = _user_has_social_auth_record(user, enterprise_customer)\n+    if not user_social_auth_record:\n+        enterprise_readonly_account_fields.remove('name')\n+    return set(enterprise_readonly_account_fields)",
+      "problematic_code": "lines 265-274",
+      "taxonomy_category": "control_flow.function.optimize_data_flow",
+      "similar_to_example": null
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/edx_404/code/utils.py",
+      "function_name": "update_account_settings_context_for_enterprise",
+      "start_line": 238,
+      "end_line": 255,
+      "complexity": 1,
+      "issue": "Repeated computation of enterprise readonly account fields",
+      "explanation": "The `get_enterprise_readonly_account_fields` function is called for every user, which can lead to repeated computations. This can be optimized by caching the result of this function call or by precomputing the readonly account fields outside the loop.",
+      "patch": "@@ -248,7 +248,7 @@\n def update_account_settings_context_for_enterprise(context, enterprise_customer, user):\n     enterprise_context = {\n         'enterprise_name': enterprise_customer['name'] if enterprise_customer else None,\n-        'sync_learner_profile_data': _get_sync_learner_profile_data(enterprise_customer),\n-        'edx_support_url': configuration_helpers.get_value('SUPPORT_SITE_LINK', settings.SUPPORT_SITE_LINK),\n-        'enterprise_readonly_account_fields': {\n-            'fields': list(get_enterprise_readonly_account_fields(user))\n-        }\n+        'sync_learner_profile_data': _get_sync_learner_profile_data(enterprise_customer),\n+        'edx_support_url': configuration_helpers.get_value('SUPPORT_SITE_LINK', settings.SUPPORT_SITE_LINK),\n+        'enterprise_readonly_account_fields': get_enterprise_readonly_account_fields(user)\n     }\n     context.update(enterprise_context)",
+      "problematic_code": "enterprise_readonly_account_fields = {\n            'fields': list(get_enterprise_readonly_account_fields(user))\n        }",
+      "taxonomy_category": "control_flow.function.optimize_data_flow",
+      "similar_to_example": "precompute_values"
+    }
+  ]
+}

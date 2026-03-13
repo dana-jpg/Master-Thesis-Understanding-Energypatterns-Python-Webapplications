@@ -1,0 +1,18 @@
+{
+    "id": "precompute_values",
+    "taxonomy_id": "control_flow.function.reuse_computed",
+    "title": "Precompute Values Outside Loop",
+    "description": "Compute expensive values (like string transformations) once before the loop instead of recalculating inside the loop",
+    "language": "python",
+    "source": "erpnext/item_wise_sales_register.py",
+    "before": {
+        "code": "# UNOPTIMIZED: Repeated computation inside loop\ndef execute(filters=None):\n    item_list = get_items(filters)\n    itemised_tax, tax_columns = get_tax_accounts(item_list)\n    # No precomputation of scrubbed field names\n    \n    for d in item_list:\n        total_tax = 0\n        \n        for tax in tax_columns:\n            item_tax = itemised_tax.get(d.name, {}).get(tax, {})\n            row.update({\n                # PROBLEM: frappe.scrub() called inside nested loop\n                # For 1000 items × 5 taxes = 5000 scrub calls!\n                frappe.scrub(tax + \" Rate\"): item_tax.get(\"tax_rate\", 0),\n                frappe.scrub(tax + \" Amount\"): item_tax.get(\"tax_amount\", 0),\n            })\n            total_tax += flt(item_tax.get(\"tax_amount\"))",
+        "lines": 17
+    },
+    "after": {
+        "code": "# OPTIMIZED: Precompute values before loop\ndef execute(filters=None):\n    item_list = get_items(filters)\n    itemised_tax, tax_columns = get_tax_accounts(item_list)\n    \n    # FIX: Precompute scrubbed field names ONCE\n    scrubbed_tax_fields = {}\n    for tax in tax_columns:\n        scrubbed_tax_fields.update({\n            tax + \" Rate\": frappe.scrub(tax + \" Rate\"),\n            tax + \" Amount\": frappe.scrub(tax + \" Amount\"),\n        })\n    \n    for d in item_list:\n        total_tax = 0\n        \n        for tax, details in itemised_tax.get(d.name, {}).items():\n            row.update({\n                # Use precomputed values - dictionary lookup instead of function call\n                scrubbed_tax_fields[tax + \" Rate\"]: details.get(\"tax_rate\", 0),\n                scrubbed_tax_fields[tax + \" Amount\"]: details.get(\"tax_amount\", 0),\n            })\n            total_tax += flt(details.get(\"tax_amount\"))",
+        "lines": 23
+    },
+    "energy_impact": "Reduces function calls from O(N*M) to O(M) where N=items, M=tax columns. For 1000 items and 5 taxes: 10000 → 10 string operations.",
+    "key_insight": "Move invariant computations (like string transformations, regex compilations) outside loops. Use a cache dictionary."
+}

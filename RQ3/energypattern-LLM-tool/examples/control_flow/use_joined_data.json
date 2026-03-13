@@ -1,0 +1,18 @@
+{
+    "id": "data_from_query_not_lookup",
+    "taxonomy_id": "control_flow.function.optimize_data_flow",
+    "title": "Get Data from Query Results Instead of Extra Lookup",
+    "description": "When data is already available in the query results, use it directly instead of making additional lookups",
+    "language": "python",
+    "source": "erpnext/item_wise_sales_register.py",
+    "before": {
+        "code": "# UNOPTIMIZED: Extra lookup for data already in query\ndef execute(filters):\n    # item_list already contains item details from JOIN\n    item_list = get_items(filters)  # SELECT ... FROM Invoice JOIN Item\n    \n    # PROBLEM: Fetching ALL item details again separately\n    item_details = get_item_details()  # SELECT * FROM Item\n    \n    for d in item_list:\n        # Looking up item_record when d already has the data!\n        item_record = item_details.get(d.item_code)\n        \n        row = {\n            \"item_code\": d.item_code,\n            # Using looked-up values instead of query result\n            \"item_name\": item_record.item_name if item_record else d.item_name,\n            \"item_group\": item_record.item_group if item_record else d.item_group,\n            # ...\n        }",
+        "lines": 18
+    },
+    "after": {
+        "code": "# OPTIMIZED: Use data from existing query results\ndef execute(filters):\n    # item_list already contains item details from JOIN\n    item_list = get_items(filters)  # SELECT ... FROM Invoice JOIN Item\n    \n    # FIX: Don't fetch item_details separately!\n    # Removed: item_details = get_item_details()\n    \n    for d in item_list:\n        # Use prefixed column names from JOIN result\n        row = {\n            \"item_code\": d.item_code,\n            # Use joined data with aliased column names\n            \"item_name\": d.si_item_name if d.si_item_name else d.i_item_name,\n            \"item_group\": d.si_item_group if d.si_item_group else d.i_item_group,\n            # ...\n        }",
+        "lines": 17
+    },
+    "energy_impact": "Eliminates an entire redundant database query. If item table has 10000 rows, that's a significant query saved.",
+    "key_insight": "When using JOINs, include all needed columns in the SELECT. Use column aliases to distinguish source tables. Avoid separate lookups."
+}

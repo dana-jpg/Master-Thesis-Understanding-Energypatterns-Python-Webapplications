@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-01-19T21:17:02.619167",
+  "repo_path": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_data_migration",
+  "input_type": "path",
+  "analysis_mode": "suggestion",
+  "total_findings": 1,
+  "llm_usage": {
+    "fast": 1,
+    "deep": 1,
+    "cache_hits": 0,
+    "skipped": 1,
+    "failed": 0
+  },
+  "findings": [
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_data_migration/file.py",
+      "function_name": "move_data_to_remote_relations",
+      "start_line": 7,
+      "end_line": 36,
+      "complexity": 5,
+      "issue": "N+1 queries due to repeated database updates",
+      "explanation": "The provided code updates RemoteRelation objects in batches. However, it uses the bulk_update method which can still lead to multiple database queries. To optimize this, we can use the update method with a QuerySet to reduce the number of database queries.",
+      "patch": "@@ -30,7 +30,7 @@\n         if not batch:\n             break\n-        RemoteRelation.objects.bulk_update(\n-            batch,\n-            ['account', 'active', 'admin', 'pub_date', 'json'],\n-            batch_size\n-        )\n+        RemoteRelation.objects.filter(id__in=[r.id for r in batch]).update(\n+            account=batch[0].account,\n+            active=batch[0].active,\n+            admin=batch[0].admin,\n+            pub_date=batch[0].pub_date,\n+            json=batch[0].json\n+        )",
+      "problematic_code": "RemoteRelation.objects.bulk_update(batch, ['account', 'active', 'admin', 'pub_date', 'json'], batch_size)",
+      "taxonomy_category": "data_layer.efficient_access.batch_operations",
+      "similar_to_example": "n_plus_one_to_join"
+    }
+  ]
+}

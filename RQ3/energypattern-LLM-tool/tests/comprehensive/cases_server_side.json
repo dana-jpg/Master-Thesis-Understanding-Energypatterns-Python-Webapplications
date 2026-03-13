@@ -1,0 +1,20 @@
+[
+    {
+        "id": "server_response_data_selection_1",
+        "description": "Returning full database objects to frontend",
+        "expected_category": "server_side.response.data_selection",
+        "code": "@app.route('/api/users')\ndef list_users():\n    # API endpoint to list users\n    # Returns a list of all users in the system\n    print('Fetching all users')\n    \n    users = User.objects.all()\n    \n    results = []\n    for user in users:\n        # PROBLEM: Serializing entire object including sensitive/internal fields\n        # sending 'password_hash', 'internal_notes', 'audit_logs' over the wire\n        # wastes bandwidth and exposes data.\n        # This is strictly a Response Construction issue.\n        # Should select specific fields (DTO pattern) like {'id': user.id, 'name': user.name}\n        results.append(user.to_full_dict())\n        \n    return jsonify(results)"
+    },
+    {
+        "id": "server_response_compression_1",
+        "description": "Returning large JSON without compression headers",
+        "expected_category": "server_side.response.compression",
+        "code": "def serve_large_dataset(request):\n    # Return a large dataset (MBs) for analysis\n    # This function generates a massive JSON response\n    if request.method != 'GET':\n        return HttpResponseBadRequest()\n        \n    print('Generating report...')\n    data = generate_big_report()\n    \n    # Serialize to string\n    json_str = json.dumps(data)\n    \n    # PROBLEM: Sending raw JSON bytes without compression\n    # The payload is textual and highly compressible (10x ratio).\n    # Sending it raw wastes significant network energy and bandwidth.\n    # Should use gzip or brotli compression middleware or headers.\n    response = HttpResponse(json_str, content_type='application/json')\n    # Missing: response['Content-Encoding'] = 'gzip'\n    return response"
+    },
+    {
+        "id": "server_request_control_rate_limiting_1",
+        "description": "Public endpoint without rate limiting",
+        "expected_category": "server_side.request_control.rate_limiting",
+        "code": "@app.route('/api/login', methods=['POST'])\ndef login():\n    # Public Login endpoint\n    # Accepts username and password\n    if not request.is_json:\n        return jsonify({'error': 'JSON required'}), 400\n        \n    username = request.json.get('username')\n    password = request.json.get('password')\n    \n    print(f'Login attempt for {username}')\n    \n    # PROBLEM: No rate limit decorator or check\n    # Vulnerable to brute force attacks which consume server CPU energy.\n    # Should limit to 5 attempts per minute per IP.\n    # e.g. @limiter.limit('5 per minute')\n    \n    user = authenticate(username, password)\n    if user:\n        return create_token(user)\n    return jsonify({'error': 'Invalid credentials'}), 401"
+    }
+]

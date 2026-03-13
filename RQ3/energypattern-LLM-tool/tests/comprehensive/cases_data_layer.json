@@ -1,0 +1,62 @@
+[
+    {
+        "id": "data_cache_vs_db_1",
+        "description": "Fetching user profile from DB without checking cache first",
+        "expected_category": "data_layer.efficient_access.cache_vs_db",
+        "code": "def get_user_profile(user_id):\n    # This function retrieves user profile information\n    # It simulates a common pattern in web applications\n    print(f'Fetching profile for {user_id}')\n    \n    # Check if user_id is valid (adding complexity)\n    if not user_id or user_id < 0:\n        return None\n        \n    # Pre-processing steps\n    timestamp = get_current_timestamp()\n    log_access(user_id, timestamp)\n    \n    # PROBLEM: Directly querying the db every time without checking cache\n    # This causes unnecessary database load for frequent requests\n    try:\n        user = User.objects.get(id=user_id)\n        user_data = user.to_dict()\n        \n        # Post-processing\n        if user.is_active:\n            user_data['status'] = 'active'\n        else:\n            user_data['status'] = 'inactive'\n            \n        return user_data\n    except User.DoesNotExist:\n        return None"
+    },
+    {
+        "id": "data_cache_vs_db_2",
+        "description": "Complex query that should be cached",
+        "expected_category": "data_layer.efficient_access.cache_vs_db",
+        "code": "def get_daily_stats(date=None):\n    # Calculate statistics for the dashboard\n    # This is an expensive operation involving aggregation\n    if date is None:\n        date = datetime.today()\n    \n    print(f'Calculating stats for {date}')\n    \n    # Logic to determine start and end of day\n    start_time = date.replace(hour=0, minute=0, second=0)\n    end_time = date.replace(hour=23, minute=59, second=59)\n    \n    # Verify user permissions (simulated complexity)\n    if not current_user.has_perm('view_stats'):\n        raise PermissionDenied()\n        \n    # PROBLEM: Heavy aggregation runs on every request\n    # Should use cache.get() or @cache decorator\n    total_revenue = Transaction.objects.filter(\n        created_at__gte=start_time,\n        created_at__lte=end_time\n    ).aggregate(Sum('amount'))\n    \n    # More calculations\n    active_users = User.objects.filter(\n        last_login__gte=start_time\n    ).count()\n    \n    return {\n        'revenue': total_revenue,\n        'active_users': active_users,\n        'date': date.isoformat()\n    }"
+    },
+    {
+        "id": "data_batch_ops_1",
+        "description": "N+1 problem in a loop",
+        "expected_category": "data_layer.efficient_access.batch_operations",
+        "code": "def process_orders(order_ids):\n    # Process a list of orders for shipment\n    # Input validation\n    if not order_ids:\n        return 0\n    \n    processed_count = 0\n    errors = []\n    \n    print(f'Processing {len(order_ids)} orders')\n    \n    for oid in order_ids:\n        try:\n            # Simulate complex check\n            if oid in INVALID_IDS:\n                continue\n                \n            # PROBLEM: N+1 query inside loop\n            # Should fetch all orders in one query first\n            order = Order.objects.get(id=oid)\n            \n            if order.status == 'pending':\n                order.status = 'processed'\n                order.processed_at = datetime.now()\n                \n                # Another potential N+1 if we access related items\n                for item in order.items.all():\n                    check_inventory(item)\n                \n                order.save()\n                processed_count += 1\n        except Exception as e:\n            errors.append(str(e))\n            \n    return processed_count"
+    },
+    {
+        "id": "data_batch_ops_2",
+        "description": "Creating objects in a loop instead of bulk_create",
+        "expected_category": "data_layer.efficient_access.batch_operations",
+        "code": "def import_users(user_list):\n    # Bulk import users from a CSV or API source\n    if not user_list:\n        return\n    \n    print('Starting user import...')\n    created_count = 0\n    \n    # Validate list format\n    if not isinstance(user_list, list):\n        raise ValueError('Expected a list')\n        \n    # Loop through data\n    for u_data in user_list:\n        # Validate fields\n        if 'email' not in u_data or 'name' not in u_data:\n            continue\n            \n        email = u_data['email'].lower()\n        \n        # PROBLEM: Creating one by one in a loop\n        # Should use User.objects.bulk_create(users)\n        if not User.objects.filter(email=email).exists():\n            User.objects.create(\n                name=u_data['name'], \n                email=email,\n                joined_at=datetime.now(),\n                is_active=True\n            )\n            created_count += 1\n            \n    print(f'Imported {created_count} users')"
+    },
+    {
+        "id": "data_optimize_queries_1",
+        "description": "Select * (implicit) when only few fields needed",
+        "expected_category": "data_layer.efficient_access.optimize_queries",
+        "code": "def get_user_names(user_ids):\n    # formatted list of user names for dropdown\n    if not user_ids:\n        return []\n        \n    result_list = []\n    \n    # Retrieve users from DB\n    # PROBLEM: Implicitly fetching all columns (SELECT *)\n    # We only need 'id' and 'name'. Should use .only('id', 'name') or .values()\n    # Fetching heavy columns like 'bio' or 'profile_pic_base64' wastes bandwidth\n    users = User.objects.filter(id__in=user_ids)\n    \n    for u in users:\n        # Some condition to make code diverse\n        if u.is_active:\n            display_name = f'{u.name} ({u.id})'\n            result_list.append(display_name)\n        else:\n            # Handle inactive\n            pass\n            \n    # Sort results\n    result_list.sort()\n    return result_list"
+    },
+    {
+        "id": "data_optimize_queries_2",
+        "description": "Filtering in python instead of DB",
+        "expected_category": "data_layer.efficient_access.optimize_queries",
+        "code": "def get_recent_active_users():\n    # Get users who joined recently and are active\n    # This function is used for the newsletter\n    cutoff_date = datetime.now() - timedelta(days=30)\n    \n    results = []\n    \n    # PROBLEM: Fetching ALL users then filtering in Python\n    # Should use .filter(is_active=True, joined_at__gte=cutoff_date)\n    all_users = User.objects.all()\n    \n    print(f'Scanning {len(all_users)} users...')\n    \n    for user in all_users:\n        # Python-side filtering\n        if user.is_active:\n            if user.joined_at >= cutoff_date:\n                results.append(user.email)\n                \n    # Inefficient for large tables\n    return results"
+    },
+    {
+        "id": "data_close_sessions_1",
+        "description": "Opening connection without closing",
+        "expected_category": "data_layer.resource_management.close_sessions",
+        "code": "def manual_query(sql, params=None):\n    # Execute a manual raw SQL query when ORM is insufficient\n    print(f'Executing: {sql}')\n    \n    if params is None:\n        params = ()\n        \n    # Connect to database\n    # uses psycopg2 directly\n    conn = psycopg2.connect(DSN)\n    cur = conn.cursor()\n    \n    try:\n        cur.execute(sql, params)\n        \n        if sql.strip().upper().startswith('SELECT'):\n            results = cur.fetchall()\n            # Do some processing\n            processed = [list(r) for r in results]\n            return processed\n        else:\n            conn.commit()\n            return cur.rowcount\n    except Exception as e:\n        print(f'Error: {e}')\n        return None\n    # PROBLEM: Connection and cursor are never closed!\n    # Should verify conn.close() is called in finally block"
+    },
+    {
+        "id": "data_close_sessions_2",
+        "description": "Session created but not closed in error case",
+        "expected_category": "data_layer.resource_management.close_sessions",
+        "code": "def update_record(id, data):\n    # Transactional update of a record\n    # Uses SQLAlchemy session\n    session = Session()\n    print(f'Updating record {id}')\n    \n    # Validation logic\n    if not data:\n        return False\n        \n    try:\n        obj = session.get(id)\n        if not obj:\n            return False\n            \n        # Update fields\n        for key, value in data.items():\n            setattr(obj, key, value)\n            \n        # Commit changes\n        session.commit()\n        return True\n    except Exception as e:\n        # Rollback on error\n        session.rollback()\n        log_error(e)\n        return False\n    # PROBLEM: session.close() is missing. \n    # If the try/except block finishes, session remains open."
+    },
+    {
+        "id": "data_clear_cache_1",
+        "description": "Updating data without invalidating cache",
+        "expected_category": "data_layer.resource_management.clear_cache",
+        "code": "def update_product_price(product_id, new_price):\n    # Admin function to update product price\n    # This changes the DB state\n    if new_price < 0:\n        raise ValueError('Price cannot be negative')\n        \n    print(f'Set price of {product_id} to {new_price}')\n    \n    # Verify product exists\n    exists = Product.objects.filter(id=product_id).exists()\n    if not exists:\n        return False\n        \n    # Perform update\n    Product.objects.filter(id=product_id).update(price=new_price, updated_at=datetime.now())\n    \n    # PROBLEM: The product details might be cached in Redis/Memcached\n    # We should call cache.delete(f'product:{product_id}') here\n    # Otherwise users see old price until TTL expires\n    \n    return True"
+    },
+    {
+        "id": "data_clear_cache_2",
+        "description": "Deleting user without clearing their session cache",
+        "expected_category": "data_layer.resource_management.clear_cache",
+        "code": "def delete_user_account(user_id):\n    # GDPRO compliant deletion of user data\n    print(f'Deleting user {user_id}')\n    \n    try:\n        user = User.objects.get(id=user_id)\n    except User.DoesNotExist:\n        return False\n        \n    # 1. Delete associated files\n    if user.profile_pic:\n        delete_s3_object(user.profile_pic)\n        \n    # 2. Delete database record\n    user_email = user.email\n    user.delete()\n    \n    # PROBLEM: Did not invalidate active session or profile cache\n    # User might still be logged in if session is cached\n    # Should call: active_sessions.delete(user_id)\n    \n    send_goodbye_email(user_email)\n    return True"
+    }
+]

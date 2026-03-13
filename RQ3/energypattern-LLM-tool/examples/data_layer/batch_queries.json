@@ -1,0 +1,18 @@
+{
+    "id": "n_plus_one_to_join",
+    "taxonomy_id": "data_layer.efficient_access.batch_operations",
+    "title": "Replace N+1 Queries with Single JOIN Query",
+    "description": "Instead of fetching data in a loop (N+1 pattern), use a single query with JOINs to fetch all data at once",
+    "language": "python",
+    "source": "erpnext/reorder_item.py",
+    "before": {
+        "code": "# UNOPTIMIZED: N+1 Query Pattern\ndef get_items_for_reorder() -> dict[str, list]:\n    # Step 1: Get item names\n    item_names = frappe.db.sql_list(\n        \"SELECT name FROM tabItem WHERE is_stock_item=1...\"\n    )\n    \n    itemwise_reorder = {}\n    # PROBLEM: Loop executes N queries (one per item)\n    for item_code in item_names:\n        # Query 1: Get item details - runs N times!\n        item_data = frappe.db.get_value(\n            \"Item\", item_code,\n            [\"name\", \"stock_uom\", \"description\", ...],\n            as_dict=True\n        )\n        \n        # Query 2: Get reorder levels - runs N times!\n        reorder_data = frappe.db.get_all(\n            \"Item Reorder\",\n            filters={\"parent\": item_code},\n            fields=[\"warehouse\", \"warehouse_reorder_level\", ...]\n        )\n        \n        for rd in reorder_data:\n            combined = {**item_data, **rd}\n            itemwise_reorder.setdefault(item_code, []).append(combined)\n    \n    return itemwise_reorder\n# Total queries: 1 + 2*N (e.g., 201 queries for 100 items)",
+        "lines": 28
+    },
+    "after": {
+        "code": "# OPTIMIZED: Single Query with JOIN\ndef get_items_for_reorder() -> dict[str, list]:\n    reorder_table = frappe.qb.DocType(\"Item Reorder\")\n    item_table = frappe.qb.DocType(\"Item\")\n    \n    # FIX: One query fetches ALL data via JOIN\n    query = (\n        frappe.qb.from_(reorder_table)\n        .inner_join(item_table)\n        .on(reorder_table.parent == item_table.name)\n        .select(\n            # Reorder fields\n            reorder_table.warehouse,\n            reorder_table.warehouse_reorder_level,\n            reorder_table.warehouse_reorder_qty,\n            # Item fields (joined)\n            item_table.name,\n            item_table.stock_uom,\n            item_table.description,\n            item_table.item_name,\n            item_table.brand,\n        )\n        .where(\n            (item_table.disabled == 0)\n            & (item_table.is_stock_item == 1)\n        )\n    )\n    \n    data = query.run(as_dict=True)\n    \n    # Single iteration over results\n    itemwise_reorder = {}\n    for d in data:\n        itemwise_reorder.setdefault(d.name, []).append(d)\n    \n    return itemwise_reorder\n# Total queries: 1 (regardless of item count)",
+        "lines": 35
+    },
+    "energy_impact": "Reduces database round-trips from O(N) to O(1). For 100 items: 201 queries → 1 query. Massive reduction in network overhead and database load.",
+    "key_insight": "Use Query Builder with JOINs to fetch related data in a single query instead of looping with individual queries."
+}

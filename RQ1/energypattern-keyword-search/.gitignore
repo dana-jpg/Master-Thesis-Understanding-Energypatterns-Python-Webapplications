@@ -1,0 +1,16 @@
+~$*
+.vscode
+.env
+-.env.example
+-.gitignore
+.idea/
+data/mongodb/
+.venv/
+.tmp/
+/.logs
+/metadata/results/format_validation_sample.csv
+
+__pycache__/
+*.pyc
+.tmp/**/.git
+.tmp/

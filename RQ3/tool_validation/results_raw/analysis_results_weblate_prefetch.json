@@ -1,0 +1,55 @@
+{
+  "timestamp": "2026-01-21T15:37:17.113458",
+  "repo_path": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/weblate_prefetch/code",
+  "input_type": "path",
+  "analysis_mode": "suggestion",
+  "total_findings": 3,
+  "llm_usage": {
+    "fast": 3,
+    "deep": 3,
+    "cache_hits": 0,
+    "skipped": 0,
+    "failed": 0
+  },
+  "findings": [
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/weblate_prefetch/code/tasks.py",
+      "function_name": "update_memory",
+      "start_line": 50,
+      "end_line": 106,
+      "complexity": 15,
+      "issue": "N+1 query issue in Memory.objects.filter",
+      "explanation": "The code is using a filter on the Memory model to check for matching entries in memory. However, this filter is not optimized and can lead to N+1 query issues. To fix this, we can use the `select_related` or `prefetch_related` methods to reduce the number of database queries. However, in this case, we can use `exists` method to check if any matching entries exist, which will reduce the number of queries.",
+      "patch": "@@ -50,7 +50,7 @@\n def update_memory(user, unit, component=None, project=None):\n     ...\n-    for matching in Memory.objects.filter(from_file=False, **params):\n+    if Memory.objects.filter(from_file=False, **params).exists():\n         add_project = False\n         add_shared = False\n         add_user = False\n@@ -64,10 +64,6 @@\n     if add_project:\n         to_create.append(\n             Memory(user=None, project=project, from_file=False, shared=False, **params)\n-        )\n-    if add_shared:\n-        to_create.append(\n-            Memory(user=None, project=None, from_file=False, shared=True, **params)\n         )\n     if add_user:\n         to_create.append(\n             Memory(user=user, project=None, from_file=False, shared=False, **params)\n         )",
+      "problematic_code": "for matching in Memory.objects.filter(from_file=False, **params):",
+      "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+      "similar_to_example": null
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/weblate_prefetch/code/tasks.py",
+      "function_name": "import_memory",
+      "start_line": 17,
+      "end_line": 37,
+      "complexity": 6,
+      "issue": "N+1 queries in update_memory function call",
+      "explanation": "The update_memory function is called for each unit in the units queryset. This can lead to a large number of database queries, especially if the number of units is high. To optimize this, we can use batch operations to reduce the number of database queries.",
+      "patch": "@@ -30,7 +30,7 @@\n def import_memory(project_id: int, component_id: int | None = None):\n     for component in components.iterator():\n         component.log_info(\"updating translation memory\")\n         with transaction.atomic():\n             units = Unit.objects.filter(\n                 translation__component=component, state__gte=STATE_TRANSLATED\n             ).exclude(target=\"\")\n-            for unit in units.prefetch_related(\"translation\", \"translation__language\"):\n+            units_list = list(units.prefetch_related(\"translation\", \"translation__language\"))\n+            for unit in units_list:\n                 update_memory(None, unit, component, project)",
+      "problematic_code": "for unit in units.prefetch_related(\"translation\", \"translation__language\"): update_memory(None, unit, component, project)",
+      "taxonomy_category": "data_layer.efficient_access.batch_operations",
+      "similar_to_example": null
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/weblate_prefetch/code/tasks.py",
+      "function_name": "handle_unit_translation_change",
+      "start_line": 41,
+      "end_line": 47,
+      "complexity": 1,
+      "issue": "Inefficient database query",
+      "explanation": "The `Unit.objects.prefetch().get(pk=unit_id)` line may result in an inefficient database query if `prefetch()` is not properly utilized. However, the main issue here is the potential N+1 query in `update_memory()` function call due to `get_machinery_language()` and `Memory.objects.filter()` calls. To optimize this, we can consider using `select_related()` or `prefetch_related()` on the `Unit` and `Memory` models to reduce the number of database queries.",
+      "patch": "@@ -41,7 +41,7 @@\n def handle_unit_translation_change(unit_id, user_id=None):\n     from weblate.auth.models import User\n     from weblate.trans.models import Unit\n-    user = None if user_id is None else User.objects.get(pk=user_id)\n-    unit = Unit.objects.prefetch().get(pk=unit_id)\n+    user = None if user_id is None else User.objects.select_related().get(pk=user_id)\n+    unit = Unit.objects.select_related('translation__component__project').get(pk=unit_id)\n     update_memory(user, unit)",
+      "problematic_code": "unit = Unit.objects.prefetch().get(pk=unit_id)\nupdate_memory(user, unit)",
+      "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+      "similar_to_example": null
+    }
+  ]
+}

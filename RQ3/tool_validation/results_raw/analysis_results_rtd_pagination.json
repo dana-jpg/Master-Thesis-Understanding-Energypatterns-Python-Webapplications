@@ -1,0 +1,133 @@
+{
+  "timestamp": "2026-01-21T11:10:08.830099",
+  "repo_path": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_pagination/code",
+  "input_type": "path",
+  "analysis_mode": "suggestion",
+  "total_findings": 9,
+  "llm_usage": {
+    "fast": 13,
+    "deep": 13,
+    "cache_hits": 0,
+    "skipped": 0,
+    "failed": 0
+  },
+  "findings": [
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_pagination/code/file.py",
+      "function_name": "GitHubService",
+      "start_line": 29,
+      "end_line": 516,
+      "complexity": 45,
+      "issue": "Unbounded concurrency in GitHub API requests",
+      "explanation": "The `sync_repositories` and `sync_organizations` methods make multiple requests to the GitHub API without any concurrency control. This can lead to a large number of concurrent requests, potentially overwhelming the API and causing rate limiting or other issues. To fix this, we can use a semaphore to limit the number of concurrent requests.",
+      "patch": "@@ -29,6 +29,9 @@\n import asyncio\n \n class GitHubService(Service):\n+    sem = asyncio.Semaphore(10)  # Limit to 10 concurrent requests\n     adapter = GitHubOAuth2Adapter\n     # TODO replace this with a less naive check\n     url_pattern = re.compile(r'github\\.com')\n@@ -102,7 +105,9 @@\n     def sync_repositories(self):\n         \"\"\"Sync repositories from GitHub API.\"\"\"\n         remote_repositories = []\n+        async def fetch_repo(repo):\n+            async with self.sem:\n+                return self.create_repository(repo)\n         try:\n-            repos = self.paginate('https://api.github.com/user/repos?per_page=100')\n+            repos = self.paginate('https://api.github.com/user/repos?per_page=100')\n+            tasks = [fetch_repo(repo) for repo in repos]\n+            results = await asyncio.gather(*tasks)\n+            remote_repositories = [result for result in results if result]\n         except (TypeError, ValueError):\n             log.warning('Error syncing GitHub repositories')\n             raise SyncServiceError(\n@@ -143,7 +148,9 @@\n     def sync_organizations(self):\n         \"\"\"Sync organizations from GitHub API.\"\"\"\n         remote_organizations = []\n+        async def fetch_org(org):\n+            async with self.sem:\n+                return self.create_organization(org)\n         try:\n-            orgs = self.paginate('https://api.github.com/user/orgs')\n+            orgs = self.paginate('https://api.github.com/user/orgs')\n+            tasks = [fetch_org(org) for org in orgs]\n+            results = await asyncio.gather(*tasks)\n+            remote_organizations = [result for result in results if result]\n         except (TypeError, ValueError):\n             log.warning('Error syncing GitHub organizations')\n",
+      "problematic_code": "repos = self.paginate('https://api.github.com/user/repos?per_page=100')",
+      "taxonomy_category": "background_tasks.execution_control.limit_concurrency",
+      "similar_to_example": "limit_async_concurrency"
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_pagination/code/file.py",
+      "function_name": "create_repository",
+      "start_line": 89,
+      "end_line": 165,
+      "complexity": 10,
+      "issue": "Unnecessary computations after early return condition",
+      "explanation": "The function has an early return condition when the privacy level does not match the expected conditions. However, the code does not exit early when the organization and repository organization do not match, instead, it logs a debug message and returns None. This can be optimized by adding an early return statement when the organizations do not match.",
+      "patch": "@@ -123,7 +123,7 @@\n def create_repository(self, fields, privacy=None, organization=None):\n             # It's possible that a user has access to a repository from within\n             # an organization without being member of that organization\n-            if repo.organization and organization and repo.organization != organization:\n+            if repo.organization and organization and repo.organization != organization: return None  # exit early\n             # (external contributor). In this case, the repository will be\n             # listed under the ``/repos`` endpoint but not under ``/orgs``\n             # endpoint. Then, when calling this method (``create_repository``)",
+      "problematic_code": "if repo.organization and organization and repo.organization != organization:\n                log.debug(\n                    'Not importing repository because mismatched orgs.',\n                    repository=fields['name'],\n                )\n                return None",
+      "taxonomy_category": "control_flow.function.optimize_data_flow",
+      "similar_to_example": null
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_pagination/code/file.py",
+      "function_name": "setup_webhook",
+      "start_line": 284,
+      "end_line": 350,
+      "complexity": 7,
+      "issue": "Unnecessary database query for integration secret recreation",
+      "explanation": "The code checks if integration.secret exists, and if not, it calls integration.recreate_secret(). However, this can be optimized by checking if the secret is None before calling recreate_secret(). This avoids an unnecessary database query when the secret already exists.",
+      "patch": "@@ -294,7 +294,7 @@\n def setup_webhook(self, project, integration=None):\n         if not integration:\n             integration, _ = Integration.objects.get_or_create(\n-            if not integration.secret:\n+            if integration.secret is None:\n                 integration.recreate_secret()",
+      "problematic_code": "if not integration.secret:\n            integration.recreate_secret()",
+      "taxonomy_category": "control_flow.function.optimize_data_flow",
+      "similar_to_example": "data_from_query_not_lookup"
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_pagination/code/file.py",
+      "function_name": "update_webhook",
+      "start_line": 352,
+      "end_line": 420,
+      "complexity": 7,
+      "issue": "Unnecessary repeated calls to setup_webhook",
+      "explanation": "The update_webhook function calls setup_webhook in two different cases: when provider_data is None and when the GitHub response status code is 404. However, the setup_webhook function itself also handles the case where the webhook does not exist (status code 404) by creating a new webhook. Therefore, the call to setup_webhook when provider_data is None is unnecessary and can be skipped. Additionally, the call to setup_webhook when the status code is 404 can also be skipped because the setup_webhook function will handle this case. This can be optimized by only calling setup_webhook when the status code is 404 and provider_data is not None.",
+      "patch": "@@ -365,12 +365,6 @@\n def update_webhook(self, project, integration):\n         provider_data = self.get_provider_data(project, integration)\n         log.bind(\n-        if not provider_data:\n-            return self.setup_webhook(project, integration)\n-        try:\n+        try:\n             url = provider_data.get('url')\n             resp = session.patch(\n                 url,\n@@ -394,8 +388,6 @@\n             log.bind(\n                 http_status_code=resp.status_code,\n                 url=url,\n-            if resp.status_code == 404:\n-                return self.setup_webhook(project, integration)\n             # Unknown response from GitHub\n             try:\n                 debug_data = resp.json()\n",
+      "problematic_code": "if not provider_data:\n            return self.setup_webhook(project, integration)\n\n        ... \n\n        if resp.status_code == 404:\n            return self.setup_webhook(project, integration)",
+      "taxonomy_category": "control_flow.loop.skip_iterations",
+      "similar_to_example": null
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_pagination/code/file.py",
+      "function_name": "send_build_status",
+      "start_line": 422,
+      "end_line": 494,
+      "complexity": 7,
+      "issue": "Unnecessary computations after failed GitHub commit status creation",
+      "explanation": "The function continues to execute and log messages even after it has determined that the GitHub commit status creation has failed. This can be optimized by exiting the function early when the status code is not 201, reducing unnecessary computations and improving performance.",
+      "patch": "@@ -464,14 +464,7 @@\n         if resp.status_code == 201:\n             log.debug(\"GitHub commit status created for project.\")\n-            return True\n+            return True  # No change here\n \n-        if resp.status_code in [401, 403, 404]:\n-            log.info('GitHub project does not exist or user does not have permissions.')\n-            return False\n-        \n-        try:\n-            debug_data = resp.json()\n-        except ValueError:\n-            debug_data = resp.content\n-        log.warning(\n-            'GitHub commit status creation failed. Unknown GitHub response.',\n-            debug_data=debug_data,\n-        )\n+        return False  # Exit early on failure",
+      "problematic_code": "lines 464-494",
+      "taxonomy_category": "control_flow.function.optimize_data_flow",
+      "similar_to_example": null
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_pagination/code/file.py",
+      "function_name": "get_token_for_project",
+      "start_line": 497,
+      "end_line": 516,
+      "complexity": 7,
+      "issue": "N+1 query in token retrieval",
+      "explanation": "The current implementation fetches tokens for each user in the project, resulting in multiple database queries. This can be optimized by using a single query to fetch all tokens for the project users. The issue is similar to the 'data_from_query_not_lookup' example, where a separate lookup is avoided by including all needed columns in the SELECT statement.",
+      "patch": "@@ -497,7 +497,7 @@\n def get_token_for_project(cls, project, force_local=False):\n         if not settings.ALLOW_PRIVATE_REPOS:\n             return None\n-        token = None\n+        token = None\n         try:\n-            if settings.DONT_HIT_DB and not force_local:\n+            if settings.DONT_HIT_DB and not force_local:\n                 token = api.project(project.pk).token().get()['token']\n             else:\n-                for user in AdminPermission.admins(project):\n-                    tokens = SocialToken.objects.filter(\n-                        account__user=user,\n-                        app__provider=cls.adapter.provider_id,\n-                    )\n-                    if tokens.exists():\n-                        token = tokens[0].token\n+                tokens = SocialToken.objects.filter(\n+                    account__user__in=AdminPermission.admins(project),\n+                    app__provider=cls.adapter.provider_id,\n+                )\n+                if tokens.exists():\n+                    token = tokens[0].token\n         except Exception:\n             log.exception('Failed to get token for project')\n         return token",
+      "problematic_code": "for user in AdminPermission.admins(project):\n                    tokens = SocialToken.objects.filter(\n                        account__user=user,\n                        app__provider=cls.adapter.provider_id,\n                    )",
+      "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+      "similar_to_example": "data_from_query_not_lookup"
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_pagination/code/file.py",
+      "function_name": "get_provider_data",
+      "start_line": 224,
+      "end_line": 282,
+      "complexity": 6,
+      "issue": "Unnecessary database query for integration provider data",
+      "explanation": "The code checks if integration.provider_data exists, but if it does, it still queries the database to save the integration. This is unnecessary as the data is already available. Similar to the 'data_from_query_not_lookup' example, we should avoid separate lookups when the data is already available.",
+      "patch": "@@ -251,7 +251,6 @@\n         if webhook_data['config']['url'] == rtd_webhook_url:\n             integration.provider_data = webhook_data\n-            integration.save()\n             log.info(\n                 'GitHub integration updated with provider data for project.',\n             )\n         ",
+      "problematic_code": "integration.save()",
+      "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+      "similar_to_example": "data_from_query_not_lookup"
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_pagination/code/file.py",
+      "function_name": "sync_organizations",
+      "start_line": 55,
+      "end_line": 87,
+      "complexity": 4,
+      "issue": "N+1 queries in organization and repository syncing",
+      "explanation": "The current implementation of `sync_organizations` makes multiple API calls to fetch organization details and repositories. This can be optimized by reducing the number of API calls. For example, instead of calling `self.get_session().get(org['url']).json()` for each organization, we can fetch all organization details in a single API call if possible, or use GitHub's API to fetch organization details in batches. Similarly, instead of calling `self.paginate('{org_url}/repos'.format(org_url=org['url']))` for each organization, we can fetch all repositories for an organization in a single API call.",
+      "patch": "@@ -55,7 +55,7 @@\n def sync_organizations(self):\n         remote_organizations = []\n         remote_repositories = []\n-        try:\n-            orgs = self.paginate('https://api.github.com/user/orgs')\n-            for org in orgs:\n-                org_details = self.get_session().get(org['url']).json()\n-                remote_organization = self.create_organization(org_details)\n-                # Add repos\n-                # TODO ?per_page=100\n-                org_repos = self.paginate(\n-                    '{org_url}/repos'.format(org_url=org['url']),\n-                )\n+        try:\n+            orgs = self.paginate('https://api.github.com/user/orgs', per_page=100)\n+            org_urls = [org['url'] for org in orgs]\n+            org_details_list = self.get_session().get('https://api.github.com/orgs/{org_url}', params={'per_page': 100}).json() for org_url in org_urls]\n+            for org, org_details in zip(orgs, org_details_list):\n+                remote_organization = self.create_organization(org_details)\n+                org_repos = self.paginate('{org_url}/repos'.format(org_url=org['url']), per_page=100)\n+                remote_organizations.append(remote_organization)\n+                for repo in org_repos:\n+                    remote_repository = self.create_repository(repo, organization=remote_organization)\n+                    remote_repositories.append(remote_repository)",
+      "problematic_code": "org_details = self.get_session().get(org['url']).json()\norg_repos = self.paginate('{org_url}/repos'.format(org_url=org['url']))",
+      "taxonomy_category": "data_layer.efficient_access.batch_operations",
+      "similar_to_example": null
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_pagination/code/file.py",
+      "function_name": "sync_repositories",
+      "start_line": 38,
+      "end_line": 53,
+      "complexity": 3,
+      "issue": "N+1 queries in repository creation",
+      "explanation": "The create_repository function is called in a loop for each repository, potentially leading to N+1 queries. This can be optimized by using batch operations to reduce the number of database queries.",
+      "patch": "@@ -41,7 +41,7 @@\n         try:\n             repos = self.paginate('https://api.github.com/user/repos?per_page=100')\n             remote_repositories = []\n-            for repo in repos:\n-                remote_repository = self.create_repository(repo)\n-                remote_repositories.append(remote_repository)\n+            remote_repositories = [self.create_repository(repo) for repo in repos]\n         except (TypeError, ValueError):\n             log.warning('Error syncing GitHub repositories')\n@@ -48,7 +48,7 @@\n             raise SyncServiceError(\n                 'Could not sync your GitHub repositories, '\n                 'try reconnecting your account'\n-            )\n+            )",
+      "problematic_code": "remote_repository = self.create_repository(repo)",
+      "taxonomy_category": "data_layer.efficient_access.batch_operations",
+      "similar_to_example": null
+    }
+  ]
+}

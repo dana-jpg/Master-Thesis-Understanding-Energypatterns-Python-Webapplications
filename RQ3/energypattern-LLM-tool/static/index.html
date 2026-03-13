@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green Code Analyzer</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">🌱 Green Code Analyzer</h1>
+                <p class="subtitle">AI-powered energy efficiency analysis for your code</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Chat Messages Area -->
+            <div class="chat-container" id="chatContainer">
+                <div class="welcome-message">
+                    <div class="welcome-icon">🌿</div>
+                    <h2>Welcome to Green Code Analyzer!</h2>
+                    <p>Submit your code for energy efficiency analysis using one of three methods:</p>
+                    <ul>
+                        <li><strong>Code Snippet</strong> - Paste code directly</li>
+                        <li><strong>Git Repository</strong> - Enter a GitHub/GitLab URL</li>
+                        <li><strong>Local Path</strong> - Specify a local directory</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-container">
+                <!-- Mode Selector -->
+                <div class="mode-selector">
+                    <button class="mode-btn active" data-mode="code">
+                        <span class="icon">📝</span>
+                        <span>Code</span>
+                    </button>
+                    <button class="mode-btn" data-mode="repo">
+                        <span class="icon">🔗</span>
+                        <span>Git Repo</span>
+                    </button>
+                    <button class="mode-btn" data-mode="path">
+                        <span class="icon">📂</span>
+                        <span>Local Path</span>
+                    </button>
+                </div>
+
+                <!-- Input Forms -->
+                <div class="input-forms">
+                    <!-- Code Input -->
+                    <div class="input-form active" id="codeForm">
+                        <textarea id="codeInput" placeholder="Paste your code here..." rows="6"></textarea>
+                    </div>
+
+                    <!-- Repo Input -->
+                    <div class="input-form" id="repoForm">
+                        <input type="text" id="repoInput" placeholder="https://github.com/username/repository"
+                            class="text-input">
+                        <input type="text" id="branchInput" placeholder="Branch (optional, default: main/master)"
+                            class="text-input">
+                    </div>
+
+                    <!-- Path Input -->
+                    <div class="input-form" id="pathForm">
+                        <input type="text" id="pathInput" placeholder="/path/to/your/code" class="text-input">
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button class="submit-btn" id="submitBtn">
+                    <span class="btn-text">Analyze Code</span>
+                    <span class="btn-icon">🚀</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="status-bar" id="statusBar">
+            <span class="status-indicator"></span>
+            <span class="status-text">Connecting...</span>
+        </div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+
+</html>

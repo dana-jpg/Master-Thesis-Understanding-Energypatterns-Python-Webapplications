@@ -1,0 +1,31 @@
+# GitHub API & data fetching
+PyGithub
+requests
+python-dotenv
+
+# MongoDB
+pymongo
+
+# Data processing
+pandas
+pyarrow
+openpyxl
+
+# Progress / logging
+tqdm
+loguru
+
+# HTML parsing
+beautifulsoup4
+
+# AST / code parsing
+tree-sitter
+tree-sitter-python
+tree-sitter-c
+tree-sitter-cpp
+tree-sitter-c-sharp
+tree-sitter-javascript
+tree-sitter-typescript
+
+# Visualisation (notebooks)
+matplotlib
