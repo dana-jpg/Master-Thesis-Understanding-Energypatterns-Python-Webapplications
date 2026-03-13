@@ -1,0 +1,18 @@
+{
+    "id": "graceful_exception_handling",
+    "taxonomy_id": "background_tasks.failure_aware.exponential_backoff",
+    "title": "Handle Exceptions Gracefully in Concurrent Tasks",
+    "description": "When running concurrent async tasks, handle exceptions gracefully to prevent one failure from failing all tasks",
+    "language": "python",
+    "source": "mealie/recipe_data_service.py",
+    "before": {
+        "code": "# UNOPTIMIZED: One failure breaks everything\nasync def gather_with_concurrency(n, *coros, ignore_exceptions=False):\n    semaphore = asyncio.Semaphore(n)\n\n    async def sem_coro(coro):\n        async with semaphore:\n            return await coro\n\n    #  PROBLEM: ignore_exceptions parameter exists but is unused!\n    # If any coroutine raises, all results are lost\n    return await asyncio.gather(*(sem_coro(c) for c in coros))\n\n\nasync def largest_content_len(urls: list[str]) -> tuple[str, int]:\n    # ...\n    async with AsyncClient() as client:\n        tasks = [do(client, url) for url in urls]\n        #  One bad URL fails the entire batch\n        responses = await gather_with_concurrency(\n            max_concurrency, *tasks, ignore_exceptions=False\n        )\n        # If url[5] raises, we get nothing - even valid responses lost",
+        "lines": 21
+    },
+    "after": {
+        "code": "# OPTIMIZED: Graceful exception handling\nasync def gather_with_concurrency(n, *coros, ignore_exceptions=False):\n    semaphore = asyncio.Semaphore(n)\n\n    async def sem_coro(coro):\n        async with semaphore:\n            return await coro\n\n    #  FIX: Actually use return_exceptions parameter\n    results = await asyncio.gather(\n        *(sem_coro(c) for c in coros), \n        return_exceptions=ignore_exceptions  # Capture exceptions as results\n    )\n    \n    #  Filter out exceptions if requested\n    if ignore_exceptions:\n        results = [r for r in results if not isinstance(r, Exception)]\n    \n    return results\n\n\nasync def largest_content_len(urls: list[str]) -> tuple[str, int]:\n    # ...\n    async with AsyncClient() as client:\n        tasks = [do(client, url) for url in urls]\n        #  Now failures for individual URLs don't break others\n        responses = await gather_with_concurrency(\n            max_concurrency, *tasks, ignore_exceptions=True\n        )\n        # We get all successful responses even if some failed",
+        "lines": 29
+    },
+    "energy_impact": "Prevents wasted work when one item in a batch fails. All successful work is preserved instead of being discarded.",
+    "key_insight": "Use asyncio.gather(return_exceptions=True) to capture exceptions as results. Filter them out after to preserve successful results."
+}

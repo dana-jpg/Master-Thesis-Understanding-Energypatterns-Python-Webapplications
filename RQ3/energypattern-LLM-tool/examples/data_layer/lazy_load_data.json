@@ -1,0 +1,18 @@
+{
+    "id": "lazy_load_data",
+    "taxonomy_id": "control_flow.function.skip_data_layer",
+    "title": "Lazy Load Data - Fetch Only When Needed",
+    "description": "Instead of pre-loading all data upfront, fetch data lazily when actually needed",
+    "language": "python",
+    "source": "erpnext/gross_profit.py",
+    "before": {
+        "code": "# UNOPTIMIZED: Eager loading of all data upfront\nclass GrossProfitGenerator:\n    def execute(self):\n        self.load_product_bundle()\n        if filters.group_by == \"Invoice\":\n            self.group_items_by_invoice()\n        \n        # PROBLEM: Loads ALL stock ledger entries upfront\n        # Even if only a fraction will be used\n        self.load_stock_ledger_entries()  # Heavy query!\n        \n        self.load_non_stock_items()\n        self.get_returned_invoice_items()\n        self.process()\n    \n    def load_stock_ledger_entries(self):\n        # Fetches entire SLE table for company\n        res = frappe.db.sql(\n            \"\"\"SELECT item_code, warehouse, stock_value, qty\n            FROM `tabStock Ledger Entry`\n            WHERE company=%(company)s\n            ORDER BY posting_date DESC\"\"\",\n            self.filters, as_dict=True\n        )\n        self.sle = {}\n        for r in res:\n            key = (r.item_code, r.warehouse)\n            self.sle.setdefault(key, []).append(r)\n    \n    def get_buying_rate(self, item_code, warehouse):\n        # Uses pre-loaded data\n        my_sle = self.sle.get((item_code, warehouse))\n        # ... process",
+        "lines": 32
+    },
+    "after": {
+        "code": "# OPTIMIZED: Lazy loading - fetch only when needed\nclass GrossProfitGenerator:\n    def execute(self):\n        self.load_product_bundle()\n        if filters.group_by == \"Invoice\":\n            self.group_items_by_invoice()\n        \n        # FIX: Don't pre-load SLE data!\n        # Removed: self.load_stock_ledger_entries()\n        \n        self.load_non_stock_items()\n        self.get_returned_invoice_items()\n        self.process()\n    \n    def get_stock_ledger_entries(self, item_code, warehouse):\n        # Fetch only specific item/warehouse combination on demand\n        if not item_code or not warehouse:\n            return None\n        \n        return frappe.db.sql(\n            \"\"\"SELECT item_code, warehouse, stock_value, qty\n            FROM `tabStock Ledger Entry`\n            WHERE company=%(company)s \n              AND item_code=%(item_code)s\n              AND warehouse=%(warehouse)s\n            ORDER BY posting_date DESC\"\"\",\n            {**self.filters, \"item_code\": item_code, \"warehouse\": warehouse},\n            as_dict=True\n        )\n    \n    def get_buying_rate(self, item_code, warehouse):\n        # Lazy load - fetch only what's needed\n        my_sle = self.get_stock_ledger_entries(item_code, warehouse)\n        # ... process",
+        "lines": 34
+    },
+    "energy_impact": "Avoids loading potentially millions of rows when only hundreds are needed. Memory and query time reduced proportionally to actual usage.",
+    "key_insight": "Don't pre-load large datasets upfront. Fetch data lazily when needed, especially when you're filtering or only using a subset."
+}

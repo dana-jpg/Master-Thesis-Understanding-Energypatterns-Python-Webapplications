@@ -1,0 +1,50 @@
+[
+    {
+        "id": "bg_backoff_1",
+        "description": "Retrying immediately in a loop",
+        "expected_category": "background_tasks.failure_aware.exponential_backoff",
+        "code": "def sync_data(record):\n    # Sync record to external system\n    # This runs in a background worker\n    max_retries = 5\n    \n    print(f'Syncing record {record.id}')\n    \n    for i in range(max_retries):\n        try:\n            response = external_api.push(record)\n            if response.status_code == 200:\n                return True\n        except ConnectionError:\n            print(f'Connection error, retrying {i+1}...')\n            # PROBLEM: Immediate retry or fixed sleep\n            # If external system is down, 5 immediate retries just spam it.\n            # Should use exponential backoff (sleep(2**i))\n            time.sleep(1)\n            \n    return False"
+    },
+    {
+        "id": "bg_backoff_2",
+        "description": "Celery task with fixed countdown for all retries",
+        "expected_category": "background_tasks.failure_aware.exponential_backoff",
+        "code": "@celery.task(bind=True, max_retries=5)\ndef send_email_task(self, email_data):\n    # Send transactional email\n    mailer = MailerClient()\n    \n    if not email_data.get('to'):\n        return\n        \n    try:\n        mailer.send(email_data)\n    except Exception as exc:\n        print('Mail failed, scheduling retry')\n        # PROBLEM: Retrying with a fixed delay of 60s\n        # Better to increase delay for subsequent failures to avoid congestion\n        # self.retry(exc=exc, countdown=60)\n        raise self.retry(exc=exc, countdown=60)"
+    },
+    {
+        "id": "bg_lock_1",
+        "description": "Cron job running overlapping instances",
+        "expected_category": "background_tasks.execution_control.lock_duplicates",
+        "code": "def nightly_backup_job():\n    # Run extensive backup\n    # This might take longer than the cron interval (e.g. runs every hour, takes 1.5h)\n    \n    timestamp = datetime.now()\n    print(f'Starting backup at {timestamp}')\n    \n    # PROBLEM: No checking if a previous instance is still running\n    # Multiple backups running at once can crash the server IO\n    # Should acquire a lock (file lock or redis lock) at the start\n    # and release it at the end.\n    \n    prepare_files()\n    compress_data()\n    upload_to_storage()\n    \n    print('Backup complete')"
+    },
+    {
+        "id": "bg_lock_2",
+        "description": "Processing same item multiple times concurrently",
+        "expected_category": "background_tasks.execution_control.lock_duplicates",
+        "code": "def process_webhook_event(event_id, payload):\n    # multiple webhooks might arrive for the same event due to retries\n    print(f'Processing event {event_id}')\n    \n    # Validate payload\n    if not payload:\n        return\n    \n    # PROBLEM: Race condition if two workers pick up same event\n    # Both might insert duplicates into DB or trigger double emails.\n    # Should use redis.setnx(f'lock:{event_id}', 1) to ensure single processing\n    \n    if is_processed(event_id):\n         return\n         \n    save_event(event_id, payload)\n    trigger_actions(payload)\n    mark_processed(event_id)"
+    },
+    {
+        "id": "bg_expiration_1",
+        "description": "Processing very old tasks",
+        "expected_category": "background_tasks.execution_control.task_expiration",
+        "code": "@worker.task\ndef generate_report(request_id, timestamp):\n    # Generate PDF report requested by user\n    # If the queue is backed up, this might run 5 hours later\n    \n    request_time = datetime.fromtimestamp(timestamp)\n    now = datetime.now()\n    \n    # PROBLEM: No check if the task is too old\n    # If it's > 1 hour old, user probably left or retry already happened.\n    # Should have an expiration check (if now - request_time > 1h: return)\n    \n    print(f'Generating report for {request_id}')\n    data = gather_data()\n    pdf = create_pdf(data)\n    email_user(pdf)"
+    },
+    {
+        "id": "bg_expiration_2",
+        "description": "Queueing without TTL",
+        "expected_category": "background_tasks.execution_control.task_expiration",
+        "code": "def enqueue_notification(user_id, message):\n    # Enqueue a push notification\n    # Using a simple redis queue implementation\n    \n    if not message:\n        return\n        \n    print(f'Queueing notif for {user_id}')\n    \n    task = {\n        'type': 'push',\n        'user': user_id,\n        'msg': message,\n        'enqueued_at': time.time()\n    }\n    \n    # PROBLEM: Pushing to queue without valid-until metadata or TTL\n    # Notifications might be delivered next day if workers go down\n    # which might be inappropriate for time-sensitive alerts (e.g. \"Car arriving now\")\n    # Should use a queue that supports message expiration.\n    redis_client.lpush('notifications', json.dumps(task))"
+    },
+    {
+        "id": "bg_concurrency_1",
+        "description": "Spawning unlimited threads",
+        "expected_category": "background_tasks.execution_control.limit_concurrency",
+        "code": "def process_images_folder(folder_path):\n    # Resize images in a folder\n    if not os.path.exists(folder_path):\n        return\n        \n    files = list_images(folder_path)\n    print(f'Found {len(files)} images')\n    threads = []\n    \n    for img_path in files:\n        # PROBLEM: Creating a thread for EACH file\n        # If 10,000 files, this will crash the system (OOM).\n        # Should use ThreadPoolExecutor(max_workers=N)\n        t = threading.Thread(target=resize_image, args=(img_path,))\n        t.start()\n        threads.append(t)\n        \n    for t in threads:\n        t.join()"
+    },
+    {
+        "id": "bg_concurrency_2",
+        "description": "Unbounded semaphore usage or lack thereof",
+        "expected_category": "background_tasks.execution_control.limit_concurrency",
+        "code": "async def scrape_urls(urls):\n    # Scrape a list of URLs asynchronously\n    if not urls:\n        return []\n        \n    tasks = []\n    print(f'Scraping {len(urls)} URLs')\n    \n    for url in urls:\n        # PROBLEM: Launching all requests at once\n        # If urls list is huge, can exhaust file descriptors or get blocked by OS.\n        # Should use asyncio.Semaphore(10) to limit partial concurrency.\n        tasks.append(fetch_url(url))\n        \n    results = await asyncio.gather(*tasks)\n    return results"
+    }
+]

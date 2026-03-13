@@ -1,0 +1,18 @@
+{
+    "id": "query_builder_vs_raw_sql",
+    "taxonomy_id": "data_layer.efficient_access.optimize_queries",
+    "title": "Use Query Builder Instead of Raw SQL String Formatting",
+    "description": "Replace raw SQL string formatting with Query Builder for better safety. type checking and maintainability",
+    "language": "python",
+    "source": "erpnext/get_item_details.py",
+    "before": {
+        "code": "# UNOPTIMIZED: Raw SQL with string formatting\ndef get_item_price(args, item_code, ignore_party=False):\n    args[\"item_code\"] = item_code\n    \n    # PROBLEM: SQL built with string concatenation\n    # - Prone to SQL injection if args not sanitized\n    # - Hard to read and maintain\n    # - No type checking or autocompletion\n    conditions = \"\"\"where item_code=%(item_code)s\n        and price_list=%(price_list)s\n        and ifnull(uom, '') in ('', %(uom)s)\"\"\"\n    \n    conditions += \"and ifnull(batch_no, '') in ('', %(batch_no)s)\"\n    \n    if not ignore_party:\n        if args.get(\"customer\"):\n            conditions += \" and customer=%(customer)s\"\n        elif args.get(\"supplier\"):\n            conditions += \" and supplier=%(supplier)s\"\n        else:\n            conditions += (\n                \"and (customer is null or customer = '') \"\n                \"and (supplier is null or supplier = '')\"\n            )\n    \n    if args.get(\"transaction_date\"):\n        conditions += \"\"\" and %(transaction_date)s between\n            ifnull(valid_from, '2000-01-01') and ifnull(valid_upto, '2500-12-31')\"\"\"\n    \n    return frappe.db.sql(\n        f\"\"\"SELECT name, price_list_rate, uom FROM `tabItem Price` {conditions}\n        ORDER BY valid_from DESC\"\"\",\n        args\n    )",
+        "lines": 32
+    },
+    "after": {
+        "code": "# OPTIMIZED: Query Builder with type safety\ndef get_item_price(pctx: ItemPriceCtx | dict, item_code, ignore_party=False):\n    pctx: ItemPriceCtx = frappe._dict(pctx)\n    \n    # FIX: Use Query Builder - safer, cleaner, maintainable\n    ip = frappe.qb.DocType(\"Item Price\")\n    \n    query = (\n        frappe.qb.from_(ip)\n        .select(ip.name, ip.price_list_rate, ip.uom)\n        .where(\n            (ip.item_code == item_code)\n            & (ip.price_list == pctx.price_list)\n            & (ip.uom.isin([\"\", pctx.uom]) | ip.uom.isnull())\n        )\n        .orderby(ip.valid_from, order=frappe.qb.desc)\n    )\n    \n    # Add conditions dynamically in a readable way\n    if pctx.batch_no:\n        query = query.where(\n            (ip.batch_no == pctx.batch_no) | (ip.batch_no.isnull())\n        )\n    \n    if not ignore_party:\n        if pctx.customer:\n            query = query.where(ip.customer == pctx.customer)\n        elif pctx.supplier:\n            query = query.where(ip.supplier == pctx.supplier)\n    \n    return query.run(as_dict=True)",
+        "lines": 30
+    },
+    "energy_impact": "Query Builders often produce more optimized SQL and allow for better query planning. Also prevents SQL injection vulnerabilities.",
+    "key_insight": "Use ORM Query Builders (SQLAlchemy, Django ORM, Frappe QB) instead of raw SQL string formatting. Better security, readability, and often performance."
+}

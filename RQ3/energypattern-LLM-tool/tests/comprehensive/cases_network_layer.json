@@ -1,0 +1,38 @@
+[
+    {
+        "id": "net_batch_calls_1",
+        "description": "Making individual API calls in a loop",
+        "expected_category": "network_layer.batch_calls",
+        "code": "async def fetch_user_data(user_ids):\n    # Fetch details for a list of users from an external microservice\n    results = []\n    \n    if not user_ids:\n        return []\n        \n    print(f'Fetching {len(user_ids)} users')\n    \n    # Initialize http client\n    async with httpx.AsyncClient() as client:\n        for uid in user_ids:\n            # PROBLEM: Serial API calls in a loop\n            # Should use asyncio.gather or a bulk endpoint (e.g. /users?ids=1,2,3)\n            try:\n                response = await client.get(f'https://api.users.com/v1/{uid}')\n                if response.status_code == 200:\n                    results.append(response.json())\n            except Exception as e:\n                print(f'Failed to fetch {uid}: {e}')\n                \n    return results"
+    },
+    {
+        "id": "net_batch_calls_2",
+        "description": "Sending analytics events one by one",
+        "expected_category": "network_layer.batch_calls",
+        "code": "def send_analytics(events):\n    # Send events to analytics provider\n    # events is a list of dictionary objects\n    sender = AnalyticsSender(api_key=API_KEY)\n    \n    success_count = 0\n    \n    for event in events:\n        # Validate event structure\n        if 'type' not in event or 'timestamp' not in event:\n            continue\n            \n        # PROBLEM: Sending one HTTP request per event\n        # Most analytics APIs support batch/bulk ingestion\n        # This causes high network overhead\n        resp = sender.post('/track', json=event)\n        if resp.status == 200:\n            success_count += 1\n            \n    return success_count"
+    },
+    {
+        "id": "net_skip_unnecessary_1",
+        "description": "Fetching data that isn't used",
+        "expected_category": "network_layer.skip_unnecessary",
+        "code": "def process_dashboard(user_id, show_feed=False):\n    # Render the dashboard data\n    data = {}\n    print(f'Processing dashboard for {user_id}')\n    \n    # Always fetch user profile\n    profile = get_profile(user_id)\n    data['profile'] = profile\n    \n    # PROBLEM: We fetch the feed even if show_feed is False\n    # The 'skip' logic for the UI is there, but the network call happens anyway.\n    # This is a wasted network call.\n    feed_response = requests.get(f'https://social-api.com/feed/{user_id}')\n    feed_data = feed_response.json()\n    \n    if show_feed:\n        data['feed'] = feed_data\n    else:\n        data['feed'] = []\n        \n    return data"
+    },
+    {
+        "id": "net_skip_unnecessary_2",
+        "description": "Calling API even if data is invalid/missing",
+        "expected_category": "network_layer.skip_unnecessary",
+        "code": "def validate_address_api(address_info):\n    # Validate address with geocoding service\n    \n    street = address_info.get('street', '').strip()\n    city = address_info.get('city', '').strip()\n    \n    geocoder = GeocodingService(key=MAPS_KEY)\n    \n    # PROBLEM: Calling External API without pre-validating inputs\n    # The API call is 'unnecessary' if inputs are obviously empty.\n    # We should skip the call if inputs are invalid.\n    # (Note: This is distinct from 'exit_early' which is a control flow optimization, \n    # but here the primary impact is avoiding network cost).\n    \n    print(f'Looking up: {street}, {city}')\n    result = geocoder.lookup(f'{street}, {city}')\n    \n    if not street or not city:\n        return False\n        \n    if result.is_valid:\n        return True\n    return False"
+    },
+    {
+        "id": "net_cache_results_1",
+        "description": "Repeatedly calling static configuration API",
+        "expected_category": "network_layer.cache_results",
+        "code": "def get_currency_rates(base='USD'):\n    # Fetch current exchange rates\n    # These only change daily or hourly\n    \n    url = f'https://api.exchangerates.com/latest?base={base}'\n    print(f'Fetching rates for {base}')\n    \n    # PROBLEM: No caching mechanism.\n    # Every call hits the external API.\n    # This is a \"cache_results\" issue.\n    # Should wrap with @lru_cache(ttl=3600) or store in Redis\n    response = requests.get(url)\n    \n    if response.ok:\n        return response.json()['rates']\n    return {}"
+    },
+    {
+        "id": "net_cache_results_2",
+        "description": "Fetching CMS content on every render",
+        "expected_category": "network_layer.cache_results",
+        "code": "class ContentRenderer:\n    def __init__(self, cms_url):\n        self.cms_url = cms_url\n        \n    def get_footer_content(self):\n        # Get footer links and text from CMS\n        # This content rarely changes (static content)\n        print('Fetching footer...')\n        \n        # PROBLEM: Fetching on every request\n        # Should be cached properties or use a caching layer (Redis/Memcached)\n        # to avoid repeated network calls for static content.\n        resp = requests.get(f'{self.cms_url}/fragments/footer')\n        return resp.text\n    \n    def render_page(self, main_content):\n        head = self.get_header()\n        foot = self.get_footer_content() \n        return f'{head}<body>{main_content}</body>{foot}'"
+    }
+]

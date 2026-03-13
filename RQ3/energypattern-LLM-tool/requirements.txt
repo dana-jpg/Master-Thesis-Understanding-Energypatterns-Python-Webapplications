@@ -1,0 +1,26 @@
+langgraph
+langchain
+langchain-community
+langchain-core
+langchain-ollama
+langchain-google-genai
+langchain-groq
+pydantic
+python-dotenv
+
+# AST parsing dependencies
+esprima          # JavaScript/TypeScript
+javalang         # Java
+tree-sitter      # C/C++
+tree-sitter-c
+tree-sitter-cpp
+
+# Web server dependencies
+flask
+flask-socketio
+flask-cors
+gitpython
+
+# RAG / Vector Store dependencies
+chromadb>=0.4.0
+sentence-transformers>=2.0.0

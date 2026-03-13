@@ -1,0 +1,44 @@
+[
+    {
+        "id": "cf_algo_approx_1",
+        "description": "Calculating exact distance for a 'nearby' check",
+        "expected_category": "control_flow.algorithmic.approximate",
+        "code": "def find_nearby_places(user_lat, user_lon, places):\n    # Find places within 1km\n    # Input validation\n    if not places or not isinstance(places, list):\n        return []\n        \n    nearby = []\n    print(f'Checking {len(places)} locations')\n    \n    # Loop through each place\n    for place in places:\n        # Verify constraints\n        if not place.is_open:\n            continue\n            \n        # PROBLEM: Using Haversine or exact geodetic calculation\n        # Very expensive sqrt and trig functions for many items\n        # For simple bounding box checks or short distances, approximations are faster\n        # e.g., using a bounding box first or equirectangular approximation\n        d_lat = math.radians(place.lat - user_lat)\n        d_lon = math.radians(place.lon - user_lon)\n        a = math.sin(d_lat/2) * math.sin(d_lat/2) + math.cos(math.radians(user_lat)) \n        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))\n        dist = 6371 * c * 1000 # in meters\n        \n        if dist < 1000:\n            nearby.append(place)\n            \n    return nearby"
+    },
+    {
+        "id": "cf_algo_builtins_1",
+        "description": "Using expensive regex for simple check",
+        "expected_category": "control_flow.algorithmic.avoid_expensive_builtins",
+        "code": "def is_valid_username(username):\n    # Check username format\n    # Must start with 'admin_'\n    if not username:\n        return False\n        \n    # Logging check\n    print(f'Validating: {username}')\n    \n    # PROBLEM: Compiling regex for a simple prefix check\n    # re.match is significantly slower than string.startswith()\n    # For this simple pattern, built-in string methods are superior\n    import re\n    \n    # This compilation happens every time\n    # Even if cached internally, the function call overhead exists\n    if re.match(r'^admin_', username):\n        # Additional checks\n        if len(username) > 20:\n             return False\n        return True\n        \n    return False"
+    },
+    {
+        "id": "cf_loop_skip_1",
+        "description": "Iterating despite finding the item",
+        "expected_category": "control_flow.loop.skip_iterations",
+        "code": "def find_user_by_email(users, target_email):\n    # Search for a user in a list\n    found_user = None\n    \n    # Validation\n    if not target_email:\n        return None\n        \n    print(f'Searching in {len(users)} users')\n    \n    for user in users:\n        # Log every iteration (slow)\n        # print(f'Checking {user.id}')\n        \n        # PROBLEM: Continues loop even after finding match\n        # Should create early exit (break) immediately when found\n        if user.email == target_email:\n            found_user = user\n            # Missing: break\n            # If list has 1M items and user is 2nd, we waste 999,998 iterations\n            \n    return found_user"
+    },
+    {
+        "id": "cf_func_reuse_1",
+        "description": "Recomputing Fibonacci recursively",
+        "expected_category": "control_flow.function.reuse_computed",
+        "code": "def fib(n):\n    # Calculate Fibonacci number for mathematical modeling\n    # Input guard\n    if n < 0:\n        raise ValueError('Negative N')\n        \n    # PROBLEM: Naive recursion recomputes values exponentially\n    # fib(30) will take seconds. fib(40) minutes.\n    # Should use @functools.lru_cache or iterative approach\n    if n <= 1:\n        return n\n        \n    # Recursive calls without memoization\n    return fib(n-1) + fib(n-2)"
+    },
+    {
+        "id": "cf_func_exit_early_1",
+        "description": "Deeply nested ifs instead of guard clauses",
+        "expected_category": "control_flow.function.exit_early",
+        "code": "def process_payment(payment):\n    # Process a credit card transaction\n    result = 'failed'\n    \n    print('Processing payment...')\n    \n    if payment:\n        # Verify amount\n        if payment.amount > 0:\n            # Verify status\n            if payment.status == 'new':\n                # Verify fraud check\n                if not payment.is_flagged:\n                    # Do processing\n                    charge_card(payment)\n                    result = 'success'\n                else:\n                    print('Fraud suspected')\n            else:\n                print('Invalid status')\n        else:\n            print('Invalid amount')\n    else:\n        print('No payment')\n        \n    # PROBLEM: Deep nesting makes code hard to read and potentially slower\n    # logic. Should preserve 'happy path' by returning early on errors.\n    # Guard clauses make the control flow cleaner.\n    return result"
+    },
+    {
+        "id": "cf_class_init_1",
+        "description": "Heavy computation in constructor",
+        "expected_category": "control_flow.class.avoid_expensive_init",
+        "code": "class DatasetLoader:\n    # A class to handle large dataset loading\n    \n    def __init__(self, filepath):\n        self.filepath = filepath\n        print(f'Initializing loader for {filepath}')\n        \n        # PROBLEM: Loading output entire dataset in __init__\n        # Instantiating this class blocks execution immediately.\n        # This makes the object expensive to create even if data isn't used yet.\n        # Should move this to a load() method or use a lazy property.\n        with open(filepath, 'rb') as f:\n            self.raw_data = f.read()\n            # Simulate heavy parsing\n            self.parsed_data = self._heavy_parse(self.raw_data)\n            \n    def _heavy_parse(self, data):\n        # Simulate CPU intensive work\n        import time\n        time.sleep(1)\n        return len(data)\n            \n    def get_headers(self):\n        return {'size': len(self.raw_data)}"
+    },
+    {
+        "id": "build_eff_tools_1",
+        "description": "Using legacy minificiation",
+        "expected_category": "build_pipeline.efficient_tools",
+        "code": "// webpack.config.js\n// Configuration for the build pipeline\n\nconst path = require('path');\nconst TerserPlugin = require('terser-webpack-plugin');\n\nmodule.exports = {\n  mode: 'production',\n  entry: './src/index.js',\n  output: {\n    filename: 'bundle.js',\n    path: path.resolve(__dirname, 'dist'),\n  },\n  optimization: {\n    minimize: true,\n    minimizer: [\n      // PROBLEM: Using older TerserPlugin or UglifyJs (JS based)\n      // This is slow for large codebases.\n      // Should use ESBuildMinify (Go based) for 10x speedup in minification.\n      new TerserPlugin({\n        parallel: true,\n        terserOptions: {\n          compress: {\n            drop_console: true,\n          },\n        },\n      }),\n    ],\n  },\n};"
+    }
+]

@@ -1,0 +1,902 @@
+{
+  "stats": {
+    "passed": 13,
+    "failed": 30,
+    "total": 43
+  },
+  "results": [
+    {
+      "id": "ui_update_on_change_1",
+      "filename": "cases_user_interface.json",
+      "passed": false,
+      "expected_category": "user_interface.state_management.update_on_change",
+      "found_category": null,
+      "failure_reason": "Expected category user_interface.state_management.update_on_change, found: ['unknown']",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "<code-snippet>",
+          "start_line": 1,
+          "end_line": 18,
+          "complexity": 0,
+          "issue": "Unnecessary API requests",
+          "explanation": "The code sends a save request to the API every time the save button is clicked, even if the name hasn't changed. This results in unnecessary computations, network requests, and potential database operations. Introducing a simple check to see if the name has changed before sending the request would mitigate this issue and reduce energy consumption.",
+          "patch": null,
+          "problematic_code": "// React Component\nfunction UserSettings({ user }) {\n  const [name, setName] = useState(user.name);\n  \n  const handleSave = async () => {\n    // PROBLEM: Sending save request even if name hasn't changed\n    // Should check if (name !== user.name)\n    await api.patch(`/users/${user.id}`, { name });\n    alert('Saved!');\n  };\n  \n  return (\n    <div>\n      <input value={name} onChange={e => setName(e.target.value)} />\n      <button onClick={handleSave}>Save</button>\n    </div>\n  );\n}",
+          "taxonomy_category": "unknown",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "ui_update_on_change_2",
+      "filename": "cases_user_interface.json",
+      "passed": false,
+      "expected_category": "user_interface.state_management.update_on_change",
+      "found_category": null,
+      "failure_reason": "No issues found, but expected one.",
+      "findings": []
+    },
+    {
+      "id": "ui_reduce_polling_1",
+      "filename": "cases_user_interface.json",
+      "passed": true,
+      "expected_category": "user_interface.state_management.reduce_polling",
+      "found_category": "user_interface.state_management.reduce_polling",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "startNotificationCheck",
+          "start_line": 1,
+          "end_line": 9,
+          "complexity": 3,
+          "issue": "Excessive polling",
+          "explanation": "The code is polling the server every 1 second to check for new messages, which can be energy-inefficient and wasteful of bandwidth. A better approach would be to use a longer polling interval, such as 60 seconds, or to use WebSockets for real-time updates. This is similar to the `reduce_polling` example, where reducing the frequency of polling can help conserve energy and resources.",
+          "patch": null,
+          "problematic_code": "setInterval(async () => { const msgs = await fetch('/api/messages/unread'); updateBadge(msgs.length); }, 1000);",
+          "taxonomy_category": "user_interface.state_management.reduce_polling",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "ui_reduce_polling_2",
+      "filename": "cases_user_interface.json",
+      "passed": false,
+      "expected_category": "user_interface.state_management.reduce_polling",
+      "found_category": null,
+      "failure_reason": "Expected category user_interface.state_management.reduce_polling, found: ['unknown']",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "<code-snippet>",
+          "start_line": 1,
+          "end_line": 18,
+          "complexity": 0,
+          "issue": "Unnecessary computations due to continuous polling",
+          "explanation": "The code continues to fetch the stock price every 5 seconds even when the user has switched tabs, resulting in unnecessary computations and energy consumption. This can be optimized by using the document.visibilityState to pause polling when the tab is not visible, reducing the number of unnecessary fetch operations and minimizing energy waste.",
+          "patch": null,
+          "problematic_code": "class StockTicker {\n    constructor() {\n        this.startPolling();\n    }\n    \n    startPolling() {\n        // Fetch stock price every 5 seconds\n        window.setInterval(() => {\n            // PROBLEM: Continues polling even if user switched tabs\n            // Should use document.visibilityState to pause polling\n            this.fetchPrice();\n        }, 5000);\n    }\n    \n    fetchPrice() {\n        // ... implementation\n    }\n}",
+          "taxonomy_category": "unknown",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "ui_rendering_lazy_images_1",
+      "filename": "cases_user_interface.json",
+      "passed": false,
+      "expected_category": "user_interface.rendering.lazy_images",
+      "found_category": null,
+      "failure_reason": "Expected category user_interface.rendering.lazy_images, found: ['unknown']",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "<code-snippet>",
+          "start_line": 1,
+          "end_line": 15,
+          "complexity": 0,
+          "issue": "Eager loading of images",
+          "explanation": "The current implementation loads all images at once, which can lead to unnecessary computations and energy consumption, especially when dealing with a large number of images. This can be improved by adding the 'loading=lazy' attribute to the img tag, allowing the browser to load images only when they come into view, reducing the amount of data transferred and processed.",
+          "patch": null,
+          "problematic_code": "function ImageGallery({ images }) {\n  // Render a grid of images\n  return (\n    <div className=\"gallery\">\n      {images.map(img => (\n        <div key={img.id} className=\"img-container\">\n          {/* PROBLEM: Eager loading all images */}\n          {/* If there are 100 images, all will download on load */}\n          {/* Should add loading=\"lazy\" */}\n          <img src={img.url} alt={img.caption} />\n        </div>\n      ))}\n    </div>\n  );\n}",
+          "taxonomy_category": "unknown",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "ui_rendering_partial_1",
+      "filename": "cases_user_interface.json",
+      "passed": false,
+      "expected_category": "user_interface.rendering.partial",
+      "found_category": null,
+      "failure_reason": "Expected category user_interface.rendering.partial, found: ['user_interface.state_management.update_on_change']",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "deleteComment",
+          "start_line": 1,
+          "end_line": 9,
+          "complexity": 1,
+          "issue": "Unnecessary full page reload after deleting a comment",
+          "explanation": "The current implementation reloads the entire page after deleting a comment, which is inefficient. A better approach would be to update the DOM or application state to reflect the removal of the comment. This is similar to the concept of lazy loading data, where we only update what's necessary instead of reloading everything. In this case, we should update the UI to remove the deleted comment without requiring a full page reload.",
+          "patch": null,
+          "problematic_code": "window.location.reload();",
+          "taxonomy_category": "user_interface.state_management.update_on_change",
+          "similar_to_example": "lazy_load_data"
+        }
+      ]
+    },
+    {
+      "id": "ui_client_resources_lazy_load_1",
+      "filename": "cases_user_interface.json",
+      "passed": false,
+      "expected_category": "user_interface.client_resources.lazy_load",
+      "found_category": null,
+      "failure_reason": "Expected category user_interface.client_resources.lazy_load, found: ['unknown']",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "<code-snippet>",
+          "start_line": 1,
+          "end_line": 15,
+          "complexity": 0,
+          "issue": "Unnecessary import of heavy library",
+          "explanation": "The code imports a heavy charting library, which may not be used in all cases, resulting in unnecessary computations and memory usage. This can lead to increased energy consumption, especially on mobile devices or low-power systems. Using dynamic import() or React.lazy can help mitigate this issue by only loading the library when it's actually needed.",
+          "patch": null,
+          "problematic_code": "// Main bundle file\nimport React from 'react';\n// PROBLEM: Importing heavy charting library for a component that might not be used\n// Should use dynamic import() or React.lazy\nimport { HugeChart } from 'heavy-chart-lib';\nimport { Dashboard } from './Dashboard';\n\nexport default function App() {\n    return (\n        <div>\n            <h1>My App</h1>\n            <Dashboard />\n        </div>\n    );\n}",
+          "taxonomy_category": "unknown",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "ui_client_resources_efficient_format_1",
+      "filename": "cases_user_interface.json",
+      "passed": false,
+      "expected_category": "user_interface.client_resources.efficient_format",
+      "found_category": null,
+      "failure_reason": "No issues found, but expected one.",
+      "findings": []
+    },
+    {
+      "id": "cf_algo_approx_1",
+      "filename": "cases_control_flow.json",
+      "passed": false,
+      "expected_category": "control_flow.algorithmic.approximate",
+      "found_category": null,
+      "failure_reason": "No issues found, but expected one.",
+      "findings": []
+    },
+    {
+      "id": "cf_algo_builtins_1",
+      "filename": "cases_control_flow.json",
+      "passed": false,
+      "expected_category": "control_flow.algorithmic.avoid_expensive_builtins",
+      "found_category": null,
+      "failure_reason": "No issues found, but expected one.",
+      "findings": []
+    },
+    {
+      "id": "cf_loop_skip_1",
+      "filename": "cases_control_flow.json",
+      "passed": false,
+      "expected_category": "control_flow.loop.skip_iterations",
+      "found_category": null,
+      "failure_reason": "Expected category control_flow.loop.skip_iterations, found: ['control_flow.function.optimize_data_flow']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "find_user_by_email",
+          "start_line": 1,
+          "end_line": 11,
+          "complexity": 3,
+          "issue": "Missing early exit in loop",
+          "explanation": "The loop continues to iterate over all users even after finding a match, which is inefficient. Adding a break statement after finding the match would improve performance by exiting the loop early.",
+          "patch": null,
+          "problematic_code": "if user.email == target_email: found_user = user",
+          "taxonomy_category": "control_flow.function.optimize_data_flow",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "cf_func_reuse_1",
+      "filename": "cases_control_flow.json",
+      "passed": false,
+      "expected_category": "control_flow.function.reuse_computed",
+      "found_category": null,
+      "failure_reason": "Expected category control_flow.function.reuse_computed, found: ['control_flow.function.optimize_data_flow']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "fib",
+          "start_line": 1,
+          "end_line": 7,
+          "complexity": 2,
+          "issue": "Naive recursion with exponential recomputation",
+          "explanation": "The Fibonacci function uses naive recursion, which leads to exponential recomputation of the same values. This can be optimized using memoization or an iterative approach. The current implementation has a time complexity of O(2^n), which can be reduced to O(n) using optimization techniques. This issue is similar to the 'precompute_values' example, where invariant computations are moved outside loops to avoid repeated calculations.",
+          "patch": null,
+          "problematic_code": "return fib(n-1) + fib(n-2)",
+          "taxonomy_category": "control_flow.function.optimize_data_flow",
+          "similar_to_example": "precompute_values"
+        }
+      ]
+    },
+    {
+      "id": "cf_func_exit_early_1",
+      "filename": "cases_control_flow.json",
+      "passed": false,
+      "expected_category": "control_flow.function.exit_early",
+      "found_category": null,
+      "failure_reason": "Expected category control_flow.function.exit_early, found: ['control_flow.function.optimize_data_flow']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "process_payment",
+          "start_line": 1,
+          "end_line": 19,
+          "complexity": 4,
+          "issue": "Deep nesting and potential performance impact",
+          "explanation": "The given code has deep nesting which can make it harder to read and potentially slower. It does not preserve the 'happy path' by returning early on errors. This can be optimized by using early returns for error conditions, thus reducing nesting and improving readability and performance. This pattern is similar to the concept of 'exit early' which is often used to simplify code flow and reduce complexity.",
+          "patch": null,
+          "problematic_code": "if payment:\n    if payment.amount > 0:\n        if payment.status == 'new':",
+          "taxonomy_category": "control_flow.function.optimize_data_flow",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "cf_class_init_1",
+      "filename": "cases_control_flow.json",
+      "passed": false,
+      "expected_category": "control_flow.class.avoid_expensive_init",
+      "found_category": null,
+      "failure_reason": "Expected category control_flow.class.avoid_expensive_init, found: ['control_flow.function.optimize_data_flow', 'control_flow.function.skip_data_layer']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "DataLoader",
+          "start_line": 1,
+          "end_line": 13,
+          "complexity": 2,
+          "issue": "Eager loading of entire dataset in __init__",
+          "explanation": "The DataLoader class loads the entire dataset in its constructor, which can block execution and consume large amounts of memory. This is similar to the 'lazy_load_data' example, where it's more efficient to load data lazily when needed. A better approach would be to load the data in a separate method, such as 'load()', or to load it lazily when the 'get_headers()' or other methods are called.",
+          "patch": null,
+          "problematic_code": "self.data = f.read(); self.parsed = complex_parse(self.data)",
+          "taxonomy_category": "control_flow.function.optimize_data_flow",
+          "similar_to_example": "lazy_load_data"
+        },
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "__init__",
+          "start_line": 2,
+          "end_line": 10,
+          "complexity": 2,
+          "issue": "Loading entire dataset in __init__",
+          "explanation": "The TARGET code loads the entire dataset in the __init__ method, which can be inefficient if the dataset is large. This is similar to the 'lazy_load_data' example, where it is recommended to fetch data lazily when needed. In this case, the data is being loaded upfront, which can block execution and consume unnecessary resources. A better approach would be to load the data in a separate method, such as a load() method, or to load it lazily when it is actually needed.",
+          "patch": null,
+          "problematic_code": "self.data = f.read()\n        self.parsed = complex_parse(self.data)",
+          "taxonomy_category": "control_flow.function.skip_data_layer",
+          "similar_to_example": "lazy_load_data"
+        }
+      ]
+    },
+    {
+      "id": "build_eff_tools_1",
+      "filename": "cases_control_flow.json",
+      "passed": false,
+      "expected_category": "build_pipeline.efficient_tools",
+      "found_category": null,
+      "failure_reason": "No issues found, but expected one.",
+      "findings": []
+    },
+    {
+      "id": "bg_backoff_1",
+      "filename": "cases_background_tasks.json",
+      "passed": true,
+      "expected_category": "background_tasks.failure_aware.exponential_backoff",
+      "found_category": "background_tasks.failure_aware.exponential_backoff",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "sync_data",
+          "start_line": 1,
+          "end_line": 16,
+          "complexity": 4,
+          "issue": "Lack of exponential backoff in retry mechanism",
+          "explanation": "The current implementation uses a fixed sleep time of 1 second between retries. This can lead to a 'thundering herd' problem where multiple requests are retried at the same time, causing further congestion. Using exponential backoff, where the sleep time increases exponentially with each retry, can help mitigate this issue. This is similar to the `graceful_exception_handling` example, but instead of handling exceptions, we're dealing with retries. However, the concept of using a more intelligent retry mechanism applies.",
+          "patch": null,
+          "problematic_code": "time.sleep(1)",
+          "taxonomy_category": "background_tasks.failure_aware.exponential_backoff",
+          "similar_to_example": "graceful_exception_handling"
+        }
+      ]
+    },
+    {
+      "id": "bg_backoff_2",
+      "filename": "cases_background_tasks.json",
+      "passed": true,
+      "expected_category": "background_tasks.failure_aware.exponential_backoff",
+      "found_category": "background_tasks.failure_aware.exponential_backoff",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "send_email_task",
+          "start_line": 2,
+          "end_line": 12,
+          "complexity": 2,
+          "issue": "Fixed retry delay",
+          "explanation": "The code uses a fixed delay of 60 seconds for retrying failed email sends. This can lead to a 'thundering herd' problem where multiple retries are triggered at the same time, causing further failures. A better approach would be to implement an exponential backoff strategy, where the delay between retries increases after each failure. This can help prevent overwhelming the email service and reduce the likelihood of subsequent failures.",
+          "patch": null,
+          "problematic_code": "raise self.retry(exc=exc, countdown=60)",
+          "taxonomy_category": "background_tasks.failure_aware.exponential_backoff",
+          "similar_to_example": "graceful_exception_handling"
+        }
+      ]
+    },
+    {
+      "id": "bg_lock_1",
+      "filename": "cases_background_tasks.json",
+      "passed": false,
+      "expected_category": "background_tasks.execution_control.lock_duplicates",
+      "found_category": null,
+      "failure_reason": "Expected category background_tasks.execution_control.lock_duplicates, found: ['unknown']",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "<code-snippet>",
+          "start_line": 1,
+          "end_line": 15,
+          "complexity": 0,
+          "issue": "Unnecessary concurrent computations",
+          "explanation": "The code does not check if a previous instance of the backup job is still running, which can lead to multiple backups running concurrently. This can cause server IO crashes and increased energy consumption due to redundant computations and disk access. Acquiring a lock (file lock or redis lock) before starting the backup job can prevent this issue and reduce energy waste.",
+          "patch": null,
+          "problematic_code": "def nightly_backup_job():\n    # Run extensive backup\n    # This might take longer than the cron interval (e.g. runs every hour, takes 1.5h)\n    \n    print('Starting backup...')\n    \n    # PROBLEM: No checking if a previous instance is still running\n    # Multiple backups running at once can crash the server IO\n    # Should acquire a lock (file lock or redis lock)\n    \n    prepare_files()\n    compress_data()\n    upload_to_storage()\n    \n    print('Backup complete')",
+          "taxonomy_category": "unknown",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "bg_lock_2",
+      "filename": "cases_background_tasks.json",
+      "passed": false,
+      "expected_category": "background_tasks.execution_control.lock_duplicates",
+      "found_category": null,
+      "failure_reason": "No issues found, but expected one.",
+      "findings": []
+    },
+    {
+      "id": "bg_expiration_1",
+      "filename": "cases_background_tasks.json",
+      "passed": true,
+      "expected_category": "background_tasks.execution_control.task_expiration",
+      "found_category": "background_tasks.execution_control.task_expiration",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "generate_report",
+          "start_line": 2,
+          "end_line": 15,
+          "complexity": 1,
+          "issue": "Missing task expiration",
+          "explanation": "The generate_report function does not check if the task is too old before generating the report. This can lead to unnecessary work being done if the user has left or is no longer interested in the report. A task expiration mechanism should be implemented to prevent this. This is similar to the concept of task expiration in the background layer, where tasks are automatically expired after a certain time period if they have not been completed.",
+          "patch": null,
+          "problematic_code": "request_time = datetime.fromtimestamp(timestamp)\n    # PROBLEM: No check if the task is too old\n    # If it's > 1 hour old, user probably left\n    # Should have an expiration (expires=3600)",
+          "taxonomy_category": "background_tasks.execution_control.task_expiration",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "bg_expiration_2",
+      "filename": "cases_background_tasks.json",
+      "passed": false,
+      "expected_category": "background_tasks.execution_control.task_expiration",
+      "found_category": null,
+      "failure_reason": "No issues found, but expected one.",
+      "findings": []
+    },
+    {
+      "id": "bg_concurrency_1",
+      "filename": "cases_background_tasks.json",
+      "passed": true,
+      "expected_category": "background_tasks.execution_control.limit_concurrency",
+      "found_category": "background_tasks.execution_control.limit_concurrency",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "process_images_folder",
+          "start_line": 1,
+          "end_line": 15,
+          "complexity": 3,
+          "issue": "Unbounded concurrency",
+          "explanation": "The code creates a new thread for each image file in the folder, which can lead to unbounded concurrency and potentially crash the system if there are a large number of files. This is similar to the `limit_async_concurrency` example, where using asyncio.Semaphore(N) is recommended to limit concurrent async operations. In this case, using ThreadPoolExecutor(max_workers=N) would be a suitable solution to limit the number of concurrent threads.",
+          "patch": null,
+          "problematic_code": "t = threading.Thread(target=resize_image, args=(img_path,))",
+          "taxonomy_category": "background_tasks.execution_control.limit_concurrency",
+          "similar_to_example": "limit_async_concurrency"
+        }
+      ]
+    },
+    {
+      "id": "bg_concurrency_2",
+      "filename": "cases_background_tasks.json",
+      "passed": true,
+      "expected_category": "background_tasks.execution_control.limit_concurrency",
+      "found_category": "background_tasks.execution_control.limit_concurrency",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "scrape_urls",
+          "start_line": 1,
+          "end_line": 12,
+          "complexity": 2,
+          "issue": "Unbounded concurrency",
+          "explanation": "The target code launches all requests at once, which can lead to exhausting file descriptors or getting blocked. This is similar to the 'limit_async_concurrency' example, where using asyncio.Semaphore(N) can limit concurrent async operations and prevent such issues.",
+          "patch": null,
+          "problematic_code": "tasks.append(fetch_url(url))",
+          "taxonomy_category": "background_tasks.execution_control.limit_concurrency",
+          "similar_to_example": "limit_async_concurrency"
+        }
+      ]
+    },
+    {
+      "id": "server_response_data_selection_1",
+      "filename": "cases_server_side.json",
+      "passed": false,
+      "expected_category": "server_side.response.data_selection",
+      "found_category": null,
+      "failure_reason": "Expected category server_side.response.data_selection, found: ['control_flow.function.optimize_data_flow']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "list_users",
+          "start_line": 2,
+          "end_line": 13,
+          "complexity": 2,
+          "issue": "Unnecessary data serialization",
+          "explanation": "The code is serializing the entire user object, including internal fields like 'password_hash', 'internal_notes', and 'audit_logs', which may not be necessary for the API response. This can lead to increased data transfer and potential security risks. A better approach would be to use the DTO (Data Transfer Object) pattern and select specific fields to serialize, similar to the 'data_from_query_not_lookup' example. This would reduce the amount of data being transferred and improve the overall efficiency of the API.",
+          "patch": null,
+          "problematic_code": "results.append(user.to_full_dict())",
+          "taxonomy_category": "control_flow.function.optimize_data_flow",
+          "similar_to_example": "data_from_query_not_lookup"
+        }
+      ]
+    },
+    {
+      "id": "server_response_compression_1",
+      "filename": "cases_server_side.json",
+      "passed": false,
+      "expected_category": "server_side.response.compression",
+      "found_category": null,
+      "failure_reason": "Expected category server_side.response.compression, found: ['server_side.response.data_selection']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "serve_large_dataset",
+          "start_line": 1,
+          "end_line": 10,
+          "complexity": 1,
+          "issue": "Missing compression for large dataset",
+          "explanation": "The code is sending a large dataset as raw JSON bytes without any compression. This can lead to increased bandwidth usage and slower response times. Using gzip or brotli compression middleware can significantly reduce the size of the response and improve performance.",
+          "patch": null,
+          "problematic_code": "response = HttpResponse(json_str, content_type='application/json')",
+          "taxonomy_category": "server_side.response.data_selection",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "server_request_control_rate_limiting_1",
+      "filename": "cases_server_side.json",
+      "passed": true,
+      "expected_category": "server_side.request_control.rate_limiting",
+      "found_category": "server_side.request_control.rate_limiting",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "login",
+          "start_line": 2,
+          "end_line": 14,
+          "complexity": 2,
+          "issue": "Missing rate limiting",
+          "explanation": "The login function is vulnerable to brute force and Denial of Service (DoS) attacks due to the lack of rate limiting. This can lead to wasted energy and resources. A rate limit decorator should be added to limit the number of requests within a certain time frame.",
+          "patch": null,
+          "problematic_code": "def login():\n    # ... (no rate limit decorator)",
+          "taxonomy_category": "server_side.request_control.rate_limiting",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "net_batch_calls_1",
+      "filename": "cases_network_layer.json",
+      "passed": true,
+      "expected_category": "network_layer.batch_calls",
+      "found_category": "network_layer.batch_calls",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "fetch_user_data",
+          "start_line": 1,
+          "end_line": 22,
+          "complexity": 6,
+          "issue": "Serial API calls in a loop",
+          "explanation": "The target code makes serial API calls in a loop, which can lead to performance issues and increased latency. This is similar to the `limit_async_concurrency` example, where unbounded concurrency can overwhelm the server and network. To improve this, the code should use asyncio.gather or a bulk endpoint to make concurrent API calls. This would reduce the overall time taken to fetch user data and improve the efficiency of the code.",
+          "patch": null,
+          "problematic_code": "for uid in user_ids:\n            # PROBLEM: Serial API calls in a loop\n            # Should use asyncio.gather or a bulk endpoint\n            try:\n                response = await client.get(f'https://api.users.com/v1/{uid}')",
+          "taxonomy_category": "network_layer.batch_calls",
+          "similar_to_example": "limit_async_concurrency"
+        }
+      ]
+    },
+    {
+      "id": "net_batch_calls_2",
+      "filename": "cases_network_layer.json",
+      "passed": false,
+      "expected_category": "network_layer.batch_calls",
+      "found_category": null,
+      "failure_reason": "Expected category network_layer.batch_calls, found: ['data_layer.efficient_access.batch_operations']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "send_analytics",
+          "start_line": 1,
+          "end_line": 20,
+          "complexity": 5,
+          "issue": "N+1 queries due to sending one HTTP request per event",
+          "explanation": "The target code sends one HTTP request per event to the analytics provider. This can cause high network overhead and is inefficient. Most analytics APIs support batch or bulk ingestion, which would reduce the number of requests and improve performance. This pattern is similar to the `limit_async_concurrency` example, where unbounded concurrency can lead to performance issues. However, the main issue here is the lack of batch operations, which can be addressed by modifying the code to send events in batches.",
+          "patch": null,
+          "problematic_code": "resp = sender.post('/track', json=event)",
+          "taxonomy_category": "data_layer.efficient_access.batch_operations",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "net_skip_unnecessary_1",
+      "filename": "cases_network_layer.json",
+      "passed": false,
+      "expected_category": "network_layer.skip_unnecessary",
+      "found_category": null,
+      "failure_reason": "Expected category network_layer.skip_unnecessary, found: ['control_flow.loop.skip_iterations']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "process_dashboard",
+          "start_line": 1,
+          "end_line": 19,
+          "complexity": 2,
+          "issue": "Unnecessary network call when show_feed is False",
+          "explanation": "The code fetches the feed data even when show_feed is False, resulting in an unnecessary network call. This can be optimized by only fetching the feed data when show_feed is True, similar to the 'lazy_load_data' example. By skipping the unnecessary network call, we can reduce the energy consumption and improve the performance of the application.",
+          "patch": null,
+          "problematic_code": "feed_response = requests.get(f'https://social-api.com/feed/{user_id}')",
+          "taxonomy_category": "control_flow.loop.skip_iterations",
+          "similar_to_example": "lazy_load_data"
+        }
+      ]
+    },
+    {
+      "id": "net_skip_unnecessary_2",
+      "filename": "cases_network_layer.json",
+      "passed": false,
+      "expected_category": "network_layer.skip_unnecessary",
+      "found_category": null,
+      "failure_reason": "Expected category network_layer.skip_unnecessary, found: ['control_flow.function.exit_early']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "validate_address",
+          "start_line": 1,
+          "end_line": 20,
+          "complexity": 4,
+          "issue": "Unnecessary API call with missing data",
+          "explanation": "The code calls the geocoding API even if essential data (street or city) is missing. This can lead to unnecessary API calls and potential errors. It would be more efficient to check for missing data before making the API call and exit early if the data is invalid. This is similar to the concept of 'exit early' in the control flow category, where we avoid unnecessary computations by checking for conditions that would make the computation unnecessary.",
+          "patch": null,
+          "problematic_code": "result = geocoder.lookup(f'{street}, {city}')",
+          "taxonomy_category": "control_flow.function.exit_early",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "net_cache_results_1",
+      "filename": "cases_network_layer.json",
+      "passed": true,
+      "expected_category": "network_layer.cache_results",
+      "found_category": "network_layer.cache_results",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "get_currency_rates",
+          "start_line": 1,
+          "end_line": 14,
+          "complexity": 2,
+          "issue": "Missing caching mechanism for currency rates",
+          "explanation": "The function get_currency_rates fetches current exchange rates from an external API on every call, which can lead to unnecessary repeated requests and increased latency. Since exchange rates change daily or hourly, a caching mechanism should be implemented to store the results for a certain period of time, reducing the number of requests to the API. This is similar to the 'lazy_load_data' example, where data is fetched only when needed, but in this case, it's about caching the results to avoid repeated requests.",
+          "patch": null,
+          "problematic_code": "response = requests.get(url)",
+          "taxonomy_category": "network_layer.cache_results",
+          "similar_to_example": "lazy_load_data"
+        }
+      ]
+    },
+    {
+      "id": "net_cache_results_2",
+      "filename": "cases_network_layer.json",
+      "passed": false,
+      "expected_category": "network_layer.cache_results",
+      "found_category": null,
+      "failure_reason": "Expected category network_layer.cache_results, found: ['data_layer.efficient_access.cache_vs_db', 'data_layer.efficient_access.cache_vs_db', 'data_layer.efficient_access.cache_vs_db']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "ContentRenderer",
+          "start_line": 1,
+          "end_line": 18,
+          "complexity": 1,
+          "issue": "Repeated network calls for static content",
+          "explanation": "The `get_footer_content` method fetches the footer content from the CMS on every request, which can lead to repeated network calls and increased latency. Since the footer content rarely changes, it would be more efficient to cache the response or use a caching layer to reduce the number of requests. This is similar to the `lazy_load_data` example, where data is fetched only when needed, but in this case, the data is static and can be cached. A caching mechanism, such as storing the response in memory or using a caching library, can help reduce the number of requests and improve performance.",
+          "patch": null,
+          "problematic_code": "resp = requests.get(f'{self.cms_url}/fragments/footer')",
+          "taxonomy_category": "data_layer.efficient_access.cache_vs_db",
+          "similar_to_example": "lazy_load_data"
+        },
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "get_footer_content",
+          "start_line": 5,
+          "end_line": 13,
+          "complexity": 1,
+          "issue": "Missing caching for rarely changing content",
+          "explanation": "The get_footer_content method fetches the footer content from the CMS on every request, which can lead to unnecessary network requests and increased latency. Since the content rarely changes, it would be more efficient to cache the response and update it only when necessary. This is similar to the concept of caching results in the 'cache_results' example, but in this case, it's applied to a specific use case of caching rarely changing content from a CMS.",
+          "patch": null,
+          "problematic_code": "resp = requests.get(f'{self.cms_url}/fragments/footer')",
+          "taxonomy_category": "data_layer.efficient_access.cache_vs_db",
+          "similar_to_example": null
+        },
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "render_page",
+          "start_line": 15,
+          "end_line": 18,
+          "complexity": 1,
+          "issue": "Missing caching for footer content",
+          "explanation": "The `get_footer_content` method makes a network call to fetch the footer content on every request. Since this content rarely changes, it should be cached to avoid repeated expensive calls. This is similar to the `n_plus_one_to_join` example, where repeated database queries are replaced with a single query. In this case, the repeated network call can be replaced with a cached property or a caching layer.",
+          "patch": null,
+          "problematic_code": "foot = self.get_footer_content()",
+          "taxonomy_category": "data_layer.efficient_access.cache_vs_db",
+          "similar_to_example": "n_plus_one_to_join"
+        }
+      ]
+    },
+    {
+      "id": "data_cache_vs_db_1",
+      "filename": "cases_data_layer.json",
+      "passed": false,
+      "expected_category": "data_layer.efficient_access.cache_vs_db",
+      "found_category": null,
+      "failure_reason": "Expected category data_layer.efficient_access.cache_vs_db, found: ['unknown']",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "<code-snippet>",
+          "start_line": 1,
+          "end_line": 28,
+          "complexity": 0,
+          "issue": "Unnecessary database queries",
+          "explanation": "The function directly queries the database every time it is called, without checking if the result is already cached. This can lead to a high database load and increased energy consumption, especially for frequent requests. Implementing a caching mechanism, such as using Django's built-in cache framework or a library like `django-cache-machine`, could significantly reduce the number of database queries and improve energy efficiency.",
+          "patch": null,
+          "problematic_code": "def get_user_profile(user_id):\n    # This function retrieves user profile information\n    # It simulates a common pattern in web applications\n    print(f'Fetching profile for {user_id}')\n    \n    # Check if user_id is valid (adding complexity)\n    if not user_id or user_id < 0:\n        return None\n        \n    # Pre-processing steps\n    timestamp = get_current_timestamp()\n    log_access(user_id, timestamp)\n    \n    # PROBLEM: Directly querying the db every time without checking cache\n    # This causes unnecessary database load for frequent requests\n    try:\n        user = User.objects.get(id=user_id)\n        user_data = user.to_dict()\n        \n        # Post-processing\n        if user.is_active:\n            user_data['status'] = 'active'\n        else:\n            user_data['status'] = 'inactive'\n            \n        return user_data\n    except User.DoesNotExist:\n        return None",
+          "taxonomy_category": "unknown",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "data_cache_vs_db_2",
+      "filename": "cases_data_layer.json",
+      "passed": true,
+      "expected_category": "data_layer.efficient_access.cache_vs_db",
+      "found_category": "data_layer.efficient_access.cache_vs_db",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "get_daily_stats",
+          "start_line": 1,
+          "end_line": 33,
+          "complexity": 3,
+          "issue": "Missing caching for expensive database queries",
+          "explanation": "The get_daily_stats function performs heavy aggregation queries on every request, which can lead to performance issues and increased database load. This can be optimized by using caching mechanisms, such as cache.get() or @cache decorator, to store the results of expensive queries and reuse them when the same query is made again. This is similar to the 'lazy_load_data' example, where data is fetched only when needed, but in this case, it's about caching the results of expensive queries to avoid repeated computations.",
+          "patch": null,
+          "problematic_code": "total_revenue = Transaction.objects.filter(created_at__gte=start_time, created_at__lte=end_time).aggregate(Sum('amount'))",
+          "taxonomy_category": "data_layer.efficient_access.cache_vs_db",
+          "similar_to_example": "lazy_load_data"
+        }
+      ]
+    },
+    {
+      "id": "data_batch_ops_1",
+      "filename": "cases_data_layer.json",
+      "passed": true,
+      "expected_category": "data_layer.efficient_access.batch_operations",
+      "found_category": "data_layer.efficient_access.batch_operations",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "process_orders",
+          "start_line": 1,
+          "end_line": 35,
+          "complexity": 7,
+          "issue": "N+1 query pattern in order processing",
+          "explanation": "The target code has a loop that fetches an order by ID in each iteration, resulting in N+1 database queries. This can be optimized by fetching all orders in a single query before the loop. Additionally, accessing related items for each order can lead to another N+1 query pattern. This issue is similar to the 'n_plus_one_to_join' example, where a single query with JOINs can replace multiple individual queries.",
+          "patch": null,
+          "problematic_code": "order = Order.objects.get(id=oid)",
+          "taxonomy_category": "data_layer.efficient_access.batch_operations",
+          "similar_to_example": "n_plus_one_to_join"
+        }
+      ]
+    },
+    {
+      "id": "data_batch_ops_2",
+      "filename": "cases_data_layer.json",
+      "passed": true,
+      "expected_category": "data_layer.efficient_access.batch_operations",
+      "found_category": "data_layer.efficient_access.batch_operations",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "import_users",
+          "start_line": 1,
+          "end_line": 32,
+          "complexity": 7,
+          "issue": "N+1 queries in user import loop",
+          "explanation": "The current implementation creates users one by one in a loop, resulting in N+1 queries. This can be optimized by using the bulk_create method provided by the ORM, which reduces the number of database queries. This is similar to the concept of batch operations, where multiple operations are performed in a single database query, improving performance and reducing the load on the database.",
+          "patch": null,
+          "problematic_code": "for u_data in user_list: ... User.objects.create(...)",
+          "taxonomy_category": "data_layer.efficient_access.batch_operations",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "data_optimize_queries_1",
+      "filename": "cases_data_layer.json",
+      "passed": true,
+      "expected_category": "data_layer.efficient_access.optimize_queries",
+      "found_category": "data_layer.efficient_access.optimize_queries",
+      "failure_reason": "",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "get_user_names",
+          "start_line": 1,
+          "end_line": 25,
+          "complexity": 4,
+          "issue": "Unnecessary data retrieval",
+          "explanation": "The code is implicitly fetching all columns for the User model, which can lead to wasted bandwidth and slower query execution. It should use .only('id', 'name') or .values() to only retrieve the necessary columns. This is similar to the 'data_from_query_not_lookup' example, where unnecessary lookups are avoided by using the data already retrieved in the query.",
+          "patch": null,
+          "problematic_code": "users = User.objects.filter(id__in=user_ids)",
+          "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+          "similar_to_example": "data_from_query_not_lookup"
+        }
+      ]
+    },
+    {
+      "id": "data_optimize_queries_2",
+      "filename": "cases_data_layer.json",
+      "passed": false,
+      "expected_category": "data_layer.efficient_access.optimize_queries",
+      "found_category": null,
+      "failure_reason": "Expected category data_layer.efficient_access.optimize_queries, found: ['unknown']",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "<code-snippet>",
+          "start_line": 1,
+          "end_line": 21,
+          "complexity": 0,
+          "issue": "Inefficient database query and filtering",
+          "explanation": "The code fetches all users from the database and then filters them in Python, which can be extremely inefficient for large tables. This results in unnecessary computations, as the database is capable of filtering the results more efficiently. Additionally, this approach can lead to a large amount of data being transferred from the database to the application, increasing energy consumption. A more efficient approach would be to use the database's filtering capabilities, such as using the .filter() method, to reduce the amount of data being transferred and processed. This would also reduce the number of computations required, resulting in improved energy efficiency.",
+          "patch": null,
+          "problematic_code": "def get_recent_active_users():\n    # Get users who joined recently and are active\n    # This function is used for the newsletter\n    cutoff_date = datetime.now() - timedelta(days=30)\n    \n    results = []\n    \n    # PROBLEM: Fetching ALL users then filtering in Python\n    # Should use .filter(is_active=True, joined_at__gte=cutoff_date)\n    all_users = User.objects.all()\n    \n    print(f'Scanning {len(all_users)} users...')\n    \n    for user in all_users:\n        # Python-side filtering\n        if user.is_active:\n            if user.joined_at >= cutoff_date:\n                results.append(user.email)\n                \n    # Inefficient for large tables\n    return results",
+          "taxonomy_category": "unknown",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "data_close_sessions_1",
+      "filename": "cases_data_layer.json",
+      "passed": false,
+      "expected_category": "data_layer.resource_management.close_sessions",
+      "found_category": null,
+      "failure_reason": "Expected category data_layer.resource_management.close_sessions, found: ['data_layer.efficient_access.optimize_queries']",
+      "findings": [
+        {
+          "file": "<code-snippet>.py",
+          "function_name": "manual_query",
+          "start_line": 1,
+          "end_line": 26,
+          "complexity": 4,
+          "issue": "Raw SQL execution without query builder",
+          "explanation": "The manual_query function executes raw SQL queries directly without using a query builder. This approach can lead to SQL injection vulnerabilities, make the code harder to read and maintain, and potentially result in less optimized queries. A query builder like SQLAlchemy or Django ORM should be used instead to improve security, readability, and performance.",
+          "patch": null,
+          "problematic_code": "cur.execute(sql, params)",
+          "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+          "similar_to_example": "query_builder_vs_raw_sql"
+        }
+      ]
+    },
+    {
+      "id": "data_close_sessions_2",
+      "filename": "cases_data_layer.json",
+      "passed": false,
+      "expected_category": "data_layer.resource_management.close_sessions",
+      "found_category": null,
+      "failure_reason": "No issues found, but expected one.",
+      "findings": []
+    },
+    {
+      "id": "data_clear_cache_1",
+      "filename": "cases_data_layer.json",
+      "passed": false,
+      "expected_category": "data_layer.resource_management.clear_cache",
+      "found_category": null,
+      "failure_reason": "Expected category data_layer.resource_management.clear_cache, found: ['unknown']",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "<code-snippet>",
+          "start_line": 1,
+          "end_line": 21,
+          "complexity": 0,
+          "issue": "Inefficient database queries and missing cache invalidation",
+          "explanation": "The function performs two separate database queries: one to check if the product exists and another to update the product price. This can be optimized into a single query. Additionally, the function does not invalidate the cache after updating the product price, which can lead to stale data being served to users until the cache expires. This can be resolved by calling cache.delete(f'product:{product_id}') after the update operation.",
+          "patch": null,
+          "problematic_code": "def update_product_price(product_id, new_price):\n    # Admin function to update product price\n    # This changes the DB state\n    if new_price < 0:\n        raise ValueError('Price cannot be negative')\n        \n    print(f'Set price of {product_id} to {new_price}')\n    \n    # Verify product exists\n    exists = Product.objects.filter(id=product_id).exists()\n    if not exists:\n        return False\n        \n    # Perform update\n    Product.objects.filter(id=product_id).update(price=new_price, updated_at=datetime.now())\n    \n    # PROBLEM: The product details might be cached in Redis/Memcached\n    # We should call cache.delete(f'product:{product_id}') here\n    # Otherwise users see old price until TTL expires\n    \n    return True",
+          "taxonomy_category": "unknown",
+          "similar_to_example": null
+        }
+      ]
+    },
+    {
+      "id": "data_clear_cache_2",
+      "filename": "cases_data_layer.json",
+      "passed": false,
+      "expected_category": "data_layer.resource_management.clear_cache",
+      "found_category": null,
+      "failure_reason": "Expected category data_layer.resource_management.clear_cache, found: ['unknown']",
+      "findings": [
+        {
+          "file": "<code-snippet>.js",
+          "function_name": "<code-snippet>",
+          "start_line": 1,
+          "end_line": 23,
+          "complexity": 0,
+          "issue": "Inefficient database operations and potential cache invalidation issue",
+          "explanation": "The code does not invalidate the active session or profile cache after deleting a user account, which could lead to unnecessary computations and inefficient database queries if the user is still logged in. Additionally, the code does not utilize caching or memoization to reduce redundant operations. The `User.objects.get(id=user_id)` query could be optimized by using `User.objects.filter(id=user_id).first()` to reduce the number of database queries. Furthermore, the `delete_s3_object` and `send_goodbye_email` functions may also be optimized for energy efficiency, but their implementation is not provided in the given code snippet.",
+          "patch": null,
+          "problematic_code": "def delete_user_account(user_id):\n    # GDPRO compliant deletion of user data\n    print(f'Deleting user {user_id}')\n    \n    try:\n        user = User.objects.get(id=user_id)\n    except User.DoesNotExist:\n        return False\n        \n    # 1. Delete associated files\n    if user.profile_pic:\n        delete_s3_object(user.profile_pic)\n        \n    # 2. Delete database record\n    user_email = user.email\n    user.delete()\n    \n    # PROBLEM: Did not invalidate active session or profile cache\n    # User might still be logged in if session is cached\n    # Should call: active_sessions.delete(user_id)\n    \n    send_goodbye_email(user_email)\n    return True",
+          "taxonomy_category": "unknown",
+          "similar_to_example": null
+        }
+      ]
+    }
+  ]
+}

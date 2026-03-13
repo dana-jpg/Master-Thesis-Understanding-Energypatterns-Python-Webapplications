@@ -1,0 +1,18 @@
+{
+    "id": "avoid_deepcopy",
+    "taxonomy_id": "control_flow.algorithmic.avoid_expensive_builtins",
+    "title": "Avoid Expensive deepcopy() - Use as_dict() Instead",
+    "description": "Replace expensive copy.deepcopy() with more efficient dictionary conversion methods",
+    "language": "python",
+    "source": "erpnext/item.py",
+    "before": {
+        "code": "# UNOPTIMIZED: Using deepcopy\nimport copy\n\ndef get_item_defaults(item, company):\n    out = {}\n    for d in item.item_defaults:\n        if d.company == company:\n            # PROBLEM: deepcopy is expensive!\n            # It recursively copies all nested objects\n            # and handles circular references\n            row = copy.deepcopy(d.as_dict())\n            row.pop(\"name\")\n            out.update(row)\n    return out",
+        "lines": 13
+    },
+    "after": {
+        "code": "# OPTIMIZED: Use as_dict() with appropriate options\ndef get_item_defaults(item, company):\n    out = {}\n    for d in item.item_defaults:\n        if d.company == company:\n            # FIX: Use as_dict() which is already a copy\n            # no_private_properties=True excludes internal fields\n            row = d.as_dict(no_private_properties=True)\n            row.pop(\"name\")\n            out.update(row)\n    return out",
+        "lines": 11
+    },
+    "energy_impact": "deepcopy() is 10-100x slower than simple dict operations. Significant when called in loops or hot paths.",
+    "key_insight": "Avoid copy.deepcopy() when a shallow copy or native serialization (as_dict, to_dict) suffices. Most frameworks provide efficient conversion methods."
+}

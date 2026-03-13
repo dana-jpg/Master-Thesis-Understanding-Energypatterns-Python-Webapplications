@@ -1,0 +1,68 @@
+{
+  "timestamp": "2026-01-21T13:04:06.830607",
+  "repo_path": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_SSO_queries/code",
+  "input_type": "path",
+  "analysis_mode": "suggestion",
+  "total_findings": 4,
+  "llm_usage": {
+    "fast": 8,
+    "deep": 8,
+    "cache_hits": 0,
+    "skipped": 3,
+    "failed": 0
+  },
+  "findings": [
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_SSO_queries/code/permissions.py",
+      "function_name": "AdminPermissionBase",
+      "start_line": 12,
+      "end_line": 167,
+      "complexity": 23,
+      "issue": "Unnecessary database queries in the projects method",
+      "explanation": "The projects method makes multiple database queries to fetch projects for a user. This can be optimized by reducing the number of queries or using more efficient queries. The method calls cls._get_projects_for_sso_user, which returns an empty queryset. This call can be avoided if not necessary. Additionally, the method filters projects based on teams and organizations, which can be done in a single query using Django's ORM.",
+      "patch": "@@ -55,7 +55,6 @@\n         if admin or member:\n             # Projects from VCS SSO.\n-            projects |= cls._get_projects_for_sso_user(user, admin=admin, member=member)\n             # Projects from teams that don't have VCS SSO enabled.\n             filter = Q()\n             if admin:\n@@ -73,10 +72,6 @@\n         # Projects from organizations that don't have VCS SSO enabled,\n         # where the user is an owner.\n         if admin:\n-            projects |= Project.objects.filter(organizations__owners=user).exclude(\n-                organizations__ssointegration__provider=SSOIntegration.PROVIDER_ALLAUTH,\n-            )\n-        return projects\n+        return Project.objects.filter(Q(teams__members=user) | Q(organizations__owners=user)).exclude(\n+            organizations__ssointegration__provider=SSOIntegration.PROVIDER_ALLAUTH,\n+        )",
+      "problematic_code": "projects |= cls._get_projects_for_sso_user(user, admin=admin, member=member)\nprojects |= Project.objects.filter(filter, teams__members=user).exclude(\n            organizations__ssointegration__provider=SSOIntegration.PROVIDER_ALLAUTH,\n        )\nprojects |= Project.objects.filter(organizations__owners=user).exclude(\n            organizations__ssointegration__provider=SSOIntegration.PROVIDER_ALLAUTH,\n        )",
+      "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+      "similar_to_example": "data_from_query_not_lookup"
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_SSO_queries/code/permissions.py",
+      "function_name": "projects",
+      "start_line": 14,
+      "end_line": 69,
+      "complexity": 9,
+      "issue": "N+1 queries in project filtering",
+      "explanation": "The current implementation uses multiple database queries to filter projects based on user access. This can lead to N+1 query issues, where the database is queried multiple times for each project. A more efficient approach would be to use a single query with joins to retrieve all the necessary data.",
+      "patch": "@@ -45,7 +45,7 @@\n def projects(cls, user, admin=False, member=False):\n         # Projects from VCS SSO.\n-        projects |= cls._get_projects_for_sso_user(user, admin=admin, member=member)\n+        projects |= Project.objects.filter(Q(teams__members=user) | Q(organizations__owners=user)).exclude(\n+            organizations__ssointegration__provider=SSOIntegration.PROVIDER_ALLAUTH,\n+        )\n         # Projects from teams that don't have VCS SSO enabled.\n-        filter = Q()\n-        if admin:\n-            filter |= Q(teams__access=ADMIN_ACCESS)\n-        if member:\n-            filter |= Q(teams__access=READ_ONLY_ACCESS)\n-        projects |= Project.objects.filter(filter, teams__members=user).exclude(\n-            organizations__ssointegration__provider=SSOIntegration.PROVIDER_ALLAUTH,\n-        )\n-        # Projects from organizations that don't have VCS SSO enabled,\n-        # where the user is an owner.\n-        if admin:\n-            projects |= Project.objects.filter(organizations__owners=user).exclude(\n-                organizations__ssointegration__provider=SSOIntegration.PROVIDER_ALLAUTH,\n-            )",
+      "problematic_code": "projects |= cls._get_projects_for_sso_user(user, admin=admin, member=member)\nprojects |= Project.objects.filter(filter, teams__members=user).exclude(\n    organizations__ssointegration__provider=SSOIntegration.PROVIDER_ALLAUTH,\n)\nprojects |= Project.objects.filter(organizations__owners=user).exclude(\n    organizations__ssointegration__provider=SSOIntegration.PROVIDER_ALLAUTH,\n)",
+      "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+      "similar_to_example": "query_builder_vs_raw_sql"
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_SSO_queries/code/permissions.py",
+      "function_name": "members",
+      "start_line": 129,
+      "end_line": 157,
+      "complexity": 6,
+      "issue": "Unoptimized database queries",
+      "explanation": "The code uses multiple database queries to fetch related objects, which can lead to N+1 query issues. Specifically, the `User.objects.filter()` and `Team.objects.member()` calls can result in separate database queries for each iteration. This can be optimized by using Django's built-in query optimization techniques, such as `select_related()` or `prefetch_related()`. The `distinct()` method is also used, which can be expensive if the result set is large. Similar to the `data_from_query_not_lookup` example, we can optimize the data flow by using more efficient query methods.",
+      "patch": "@@ -145,7 +145,7 @@\n         if isinstance(obj, Organization):\n                 if user:\n                         teams = Team.objects.member(user, organization=obj)\n-                        return User.objects.filter(\n-                            Q(teams__in=teams) | Q(owner_organizations=obj),\n-                        ).distinct()\n+                        return User.objects.filter(Q(teams__in=teams) | Q(owner_organizations=obj)).prefetch_related('teams', 'owner_organizations').distinct()",
+      "problematic_code": "return User.objects.filter(\n                    Q(teams__in=teams) | Q(owner_organizations=obj),\n                ).distinct()",
+      "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+      "similar_to_example": "data_from_query_not_lookup"
+    },
+    {
+      "file": "/Users/username/Documents/energypattern-LLM-tool/example_files_to_analyze/readthedocs_SSO_queries/code/permissions.py",
+      "function_name": "organizations",
+      "start_line": 72,
+      "end_line": 85,
+      "complexity": 3,
+      "issue": "N+1 query in organizations function",
+      "explanation": "The function `organizations` calls `cls.projects(user, admin=True, member=True)` which may lead to an N+1 query issue if `projects` function is not optimized. However, looking at the provided `projects` function, it seems to be already optimized as it uses `Project.objects.filter` and `Q` objects to reduce the number of queries. But the `organizations` function itself can be optimized by using a single query to fetch the organizations. This can be achieved by using `Q` objects to filter the organizations based on the `owner` and `member` parameters.",
+      "patch": "@@ -72,11 +72,7 @@\n def organizations(cls, user, owner=False, member=False):\n     from readthedocs.organizations.models import Organization\n \n-    organizations = Organization.objects.none()\n \n-    if owner:\n-        organizations |= Organization.objects.filter(owners__in=[user]).distinct()\n \n-    if member:\n-        organizations |= Organization.objects.filter(\n-            projects__in=cls.projects(user, admin=True, member=True)\n-        ).distinct()\n+    filter = Q()\n+    if owner:\n+        filter |= Q(owners__in=[user])\n+    if member:\n+        filter |= Q(projects__in=cls.projects(user, admin=True, member=True))\n+    return Organization.objects.filter(filter).distinct()",
+      "problematic_code": "if member:\n            organizations |= Organization.objects.filter(\n                projects__in=cls.projects(user, admin=True, member=True)\n            ).distinct()",
+      "taxonomy_category": "data_layer.efficient_access.optimize_queries",
+      "similar_to_example": "data_from_query_not_lookup"
+    }
+  ]
+}
